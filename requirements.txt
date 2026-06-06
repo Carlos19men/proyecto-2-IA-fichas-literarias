@@ -1,0 +1,20 @@
+# --- ORQUESTACIÓN DE IA Y MODELOS ---
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-ollama>=0.1.0
+langchain-core>=0.3.0
+
+# --- BASE DE DATOS DE GRAFOS ---
+neo4j>=5.0.0
+
+# --- PROCESAMIENTO Y CARGA DE DOCUMENTOS ---
+unstructured[docx,md]>=0.15.0
+docx2txt>=0.8
+pypdf>=4.0.0
+
+# --- VALIDACIÓN DE DATOS Y ENTORNO ---
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# --- ENTORNO DE PRUEBAS (Opcional pero recomendado para la carpeta /notebooks) ---
+notebook>=7.0.0

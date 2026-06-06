@@ -1,0 +1,18 @@
+# Entornos virtuales (Ignora la carpeta y todo su contenido)
+.venv/
+venv/
+env/
+
+# Archivos compilados de Python (Caché del sistema)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de configuración local y credenciales (¡Súper importante!)
+.env
+
+# Archivos del editor de código (Opcional, evita conflictos de configuración)
+.vscode/
+.idea/
+.DS_Store
