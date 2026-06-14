@@ -1,14 +1,51 @@
 version: '3.8'
 
 services:
+  # --- 1. BASE DE DATOS DE GRAFOS (GraphRAG y Producción) ---
   neo4j:
-    image: neo4j:5.15
-    container_name: neo4j_literario
+    image: neo4j:5.15.0-community  # Versión recomendada en tu MD para evitar errores de índices vectoriales
+    container_name: neo4j_literario # Nombre exacto que busca tu sección de Troubleshooting
     ports:
-      - "7474:7474" 
-      - "7687:7687" 
-    environment:
-      # Docker leerá el usuario y contraseña directamente de tu archivo .env
-      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+      - "7474:7474" # Interfaz gráfica web (Neo4j Browser)
+      - "7687:7687" # Puerto Bolt para la conexión de tus scripts de Python (init_db.py)
     volumes:
-      - ./data/neo4j_data:/data
+      - neo4j_data:/data
+      - neo4j_plugins:/plugins
+    environment:
+      # Mapeo dinámico: Docker lee estas variables directamente desde tu archivo .env
+      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+      # Habilitamos APOC, indispensable para cargas masivas y algoritmos de grafos
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+    networks:
+      - letrascopio_network
+    restart: unless-stopped
+
+  # --- 2. GESTIÓN DOCUMENTAL (Fase de Limpieza y Human-in-the-loop) ---
+  mongodb:
+    image: mongo:latest
+    container_name: letrascopio_mongo
+    ports:
+      - "27017:27017" # Puerto estándar para conectar MongoDB Compass o FastAPI
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      # Credenciales de administración para la base de datos documental
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=letrascopio_secret_password
+    networks:
+      - letrascopio_network
+    restart: unless-stopped
+
+# --- VOLÚMENES PERSISTENTES ---
+# Evitan que la información de los autores de Bolívar se borre al apagar el contenedor
+volumes:
+  neo4j_data:
+  neo4j_plugins:
+  mongo_data:
+
+# --- RED INTERNA ---
+# Permite que MongoDB, Neo4j y tu FastAPI se comuniquen entre sí de forma segura
+networks:
+  letrascopio_network:
+    driver: bridge
