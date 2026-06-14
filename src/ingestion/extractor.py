@@ -5,8 +5,12 @@ from src.ingestion.schemas import FichaLiterariaSchema
 
 def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
     """
-    Envía el texto crudo a Ollama y fuerza una respuesta estructurada en JSON
-    siguiendo el esquema detallado y reestructurado de FichaLiterariaSchema.
+    Envía el texto crudo a Ollama y fuerza una respuesta estructurada en JSON.
+    
+    Extrae información completa incluyendo:
+    - Datos biográficos del autor (nombres, apellidos, fechas, lugares desglosados)
+    - Multimedia (imágenes, audio, videos)
+    - Relaciones (obras, críticas, agrupaciones, revistas, antologías, mitos/leyendas)
     """
 
     # 1. Configurar el modelo (Temperatura 0 para evitar alucinaciones y asegurar consistencia)
@@ -49,7 +53,17 @@ def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
     )
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", system_instruction),
+        ("system", """Eres un experto analista literario e historiador cultural. 
+Tu tarea es extraer información del texto y estructurarla exactamente como se te pide.
+
+REGLAS:
+- Nombres y apellidos: Separa en campos nombres y apellidos (no nombres_completos)
+- Lugares: Desglosar en ciudad, municipio, estado, pais (cada uno Optional)
+- Fechas: Formato YYYY o YYYY-MM-DD; usar None si no aparece
+- Multimedia: Incluir enlace, tipo (imagen|audio|video|pdf), restriccion (público|privado|restringido)
+- Listas vacías: Si no hay críticas/obras/agrupaciones/etc, devolver []
+- No inventar: No alucines datos no mencionados
+- Campos opcionales: Solo rellenar si están en el texto"""),
         ("human", "Extrae la información de esta ficha literaria:\n\n{texto}")
     ]) 
 
