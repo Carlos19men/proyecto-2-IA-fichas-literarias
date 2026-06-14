@@ -93,37 +93,46 @@ def _crear_indices_vectoriales(session):
     """
     Índice vectorial para búsqueda semántica con embeddings de Ollama.
     Usa 768 dimensiones (nomic-embed-text) con similitud coseno.
+    Sintaxis corregida y optimizada para Neo4j v5.15+.
     """
-    # Índices vectoriales con manejo de errores; la sintaxis puede variar según la versión
     try:
+        # 1. Índice para Críticas
         session.run("""
             CREATE VECTOR INDEX index_criticas_vector IF NOT EXISTS
             FOR (c:Critica) ON (c.embedding)
-            OPTIONS {indexConfig: {
-              'vector.dimensions': 768,
-              'vector.similarity_function': 'cosine'
-            }}
+            OPTIONS {
+              indexConfig: {
+                `vector.dimensions`: 768,
+                `vector.similarity_function`: "cosine"
+              }
+            }
         """)
 
+        # 2. Índice para Autores
         session.run("""
             CREATE VECTOR INDEX index_autores_vector IF NOT EXISTS
             FOR (a:Autor) ON (a.embedding)
-            OPTIONS {indexConfig: {
-              'vector.dimensions': 768,
-              'vector.similarity_function': 'cosine'
-            }}
+            OPTIONS {
+              indexConfig: {
+                `vector.dimensions`: 768,
+                `vector.similarity_function`: "cosine"
+              }
+            }
         """)
 
+        # 3. Índice para Multimedia
         session.run("""
             CREATE VECTOR INDEX index_multimedia_vector IF NOT EXISTS
             FOR (m:Multimedia) ON (m.embedding)
-            OPTIONS {indexConfig: {
-              'vector.dimensions': 768,
-              'vector.similarity_function': 'cosine'
-            }}
+            OPTIONS {
+              indexConfig: {
+                `vector.dimensions`: 768,
+                `vector.similarity_function`: "cosine"
+              }
+            }
         """)
 
-        print("✅ Índices vectoriales creados (Critica, Autor, Multimedia — 768 dims, cosine).")
+        print("✅ Índices vectoriales creados con éxito (Critica, Autor, Multimedia — 768 dims, cosine).")
     except Exception as e:
         print(f"⚠️  No se pudieron crear índices vectoriales (ver versión Neo4j / configuración): {e}")
 
