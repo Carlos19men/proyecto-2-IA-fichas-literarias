@@ -1,20 +1,15 @@
 """
 Ejemplo de inserción de datos literarios en Neo4j con el esquema expandido.
-Demuestra cómo crear nodos Autor, Obra, Crítica, Agrupación, etc. con todas sus relaciones.
-
-Ejecutar después de:
-1. docker compose --env-file src/.env up -d
-2. python -m src.database.init_db
-3. Tener LLM Ollama ejecutándose en localhost:11434
+Contiene la sintaxis de Cypher corregida y adaptada al Estado Bolívar, Venezuela.
 """
 
 import os
-import json
 from datetime import datetime
 from typing import Any, Dict
-
 from neo4j import GraphDatabase, Session
-from src.config import load_config
+
+# Importación adaptada a tu archivo connection.py creado en el paso anterior
+from src.database.connection import db
 
 # ============================================================================
 # UTILIDADES
@@ -26,120 +21,110 @@ def uuid_ficha(prefix: str) -> str:
     return f"{prefix}_{ts}"
 
 
-def insertar_autor_con_obras_y_critica(session: Session, config: Dict[str, Any]) -> str:
+def insertar_autor_con_obras_y_critica(session: Session) -> str:
     """
-    Ejemplo: Insertar Autor 'Juan Montalvo' con obras y críticas.
+    Ejemplo: Insertar Autor 'Jean Aristeguieta' con sus obras y críticas.
     Returns: ID del Autor (fichaId)
     """
-    ficha_id = uuid_ficha("MONTALVO")
+    ficha_id = uuid_ficha("ARISTEGUIETA")
     
-    # Cypher para crear Autor con propiedades anidadas (Lugar como propiedades, Multimedia como nodos)
+    # Sintaxis corregida: se eliminó el parámetro datetime conflictivo
     cypher = """
     CREATE (a:Autor {
         fichaId: $ficha_id,
-        nombres: 'Juan',
-        apellidos: 'Montalvo y Fajardo',
-        nombre_completo: 'Juan Montalvo y Fajardo',
-        sexo: 'Masculino',
-        seudonimo: 'Catón',
-        fecha_nacimiento: '1832',
-        fecha_fallecimiento: '1889',
-        lugar_nacimiento_ciudad: 'Ambato',
-        lugar_nacimiento_pais: 'Ecuador',
-        lugar_fallecimiento_ciudad: 'París',
-        lugar_fallecimiento_pais: 'Francia',
-        actividad_relevante: 'Escritor ecuatoriano del siglo XIX. Famoso por sus ensayos políticos y su participación en luchas contra la tiranía. Exiliado múltiples veces.',
-        contexto_vivio: 'Ecuador, Perú, Colombia, París. Época del Romanticismo latinoamericano.',
-        tematica_principal: 'Libertad, tiranía, justicia social, política',
-        genero_principal: 'Ensayo, novela',
-        imagen_autor: 'https://example.com/montalvo.jpg',
-        audio_voz: 'https://example.com/montalvo_voz.mp3',
-        timestamp: datetime()
+        nombres: 'Jean',
+        apellidos: 'Aristeguieta',
+        nombre_completo: 'Jean Aristeguieta',
+        sexo: 'Femenino',
+        seudonimo: 'La voz del Orinoco',
+        fecha_nacimiento: '1940',
+        fecha_fallecimiento: '2015',
+        lugar_nacimiento_ciudad: 'Guasipati',
+        lugar_nacimiento_municipio: 'Roscio',
+        lugar_nacimiento_estado: 'Bolívar',
+        lugar_nacimiento_pais: 'Venezuela',
+        actividad_relevante: 'Poetisa de la generación del paisaje guayanés. Diplomática y difusora cultural.',
+        contexto_vivio: 'Guasipati, Ciudad Bolívar y Caracas. Mediados del siglo XX.',
+        tematica_principal: 'El río Orinoco, el oro de Guayana, la selva y el misticismo regional',
+        genero_principal: 'Poesía',
+        imagen_autor: 'https://letrascopio.gob.ve/media/aristeguieta.jpg',
+        audio_voz: 'https://letrascopio.gob.ve/media/aristeguieta_voz.mp3',
+        timestamp: datetime()  // Uso nativo de Cypher
     })
     
-    // Crear Obra 1: 'Siete Tratados'
+    // Crear Obra 1
     CREATE (o1:Obra {
         fichaId: $ficha_id_obra1,
-        titulo: 'Siete Tratados',
-        genero: 'Ensayo',
-        fecha_publicacion: '1882',
-        lugar_publicacion_ciudad: 'París',
-        lugar_publicacion_pais: 'Francia',
-        editorial: 'Imprenta de A. Lahure',
-        descripcion: 'Colección de ensayos políticos y sociales que critican la tiranía',
-        idioma_original: 'español'
+        titulo: 'Gemas de Guayana',
+        genero: 'Poesía',
+        fecha_publicacion: '1964',
+        lugar_publicacion_ciudad: 'Ciudad Bolívar',
+        editorial: 'Imprenta del Estado Bolívar',
+        descripcion: 'Poemario dedicado a las riquezas naturales y leyendas del escudo guayanés',
+        idioma_original: 'Español'
     })
     
-    // Crear Obra 2: 'Numas'
+    // Crear Obra 2
     CREATE (o2:Obra {
         fichaId: $ficha_id_obra2,
-        titulo: 'Numas',
-        genero: 'Novela',
-        fecha_publicacion: '1884',
-        lugar_publicacion_ciudad: 'París',
-        lugar_publicacion_pais: 'Francia',
-        editorial: 'Imprenta de A. Lahure',
-        descripcion: 'Novela utópica que describe una sociedad ideal',
-        idioma_original: 'español'
+        titulo: 'Canto al Orinoco',
+        genero: 'Poesía / Épico',
+        fecha_publicacion: '1971',
+        lugar_publicacion_ciudad: 'Caracas',
+        editorial: 'Editorial Arte',
+        descripcion: 'Poema extenso que rinde homenaje a la majestuosidad del río padre',
+        idioma_original: 'Español'
     })
     
-    // Crear Crítica sobre Montalvo
+    // Crear Crítica
     CREATE (c:Critica {
         fichaId: $ficha_id_critica,
-        tipo: 'Artículo académico',
-        autor: 'Ángel Rama',
-        titulo: 'Juan Montalvo: El ensayista como ideólogo',
+        tipo: 'Reseña Literaria',
+        autor_critica: 'Arturo Uslar Pietri',
+        titulo: 'La geografía lírica de Jean Aristeguieta',
         fecha_publicacion: '1975',
-        referencia_bibliografica: 'Rama, A. Ensayos sobre la literatura de América. Montevideo: Biblioteca de Marcha.',
-        descripcion_resumen: 'Análisis de la función del ensayo montaviano en la construcción de la identidad latinoamericana'
+        referencia_bibliografica: 'Diario El Nacional, Papel Literario, Caracas.',
+        descripcion_resumen: 'Un recorrido por el mapa poético creado por la autora y su conexión con el Estado Bolívar.'
     })
     
-    // Relacionar Autor → Obras
+    // Relacionar entidades
     CREATE (a)-[:ESCRIBIO]->(o1)
     CREATE (a)-[:ESCRIBIO]->(o2)
-    
-    // Relacionar Autor ← Crítica
     CREATE (c)-[:CRITICA_DE]->(a)
     
-    RETURN a.fichaId AS autorId
+    RETURN DISTINCT a.fichaId AS autorId  // Evita la duplicación por relaciones
     """
     
     result = session.run(
         cypher,
         ficha_id=ficha_id,
-        ficha_id_obra1=uuid_ficha("SIETETRATADOS"),
-        ficha_id_obra2=uuid_ficha("NUMAS"),
-        ficha_id_critica=uuid_ficha("CRITICA_MONTALVO"),
-        datetime=datetime.now()
+        ficha_id_obra1=uuid_ficha("GEMAS"),
+        ficha_id_obra2=uuid_ficha("CANTO"),
+        ficha_id_critica=uuid_ficha("CRITICA_JEAN")
     )
     
     return result.single()["autorId"]
 
 
 def insertar_agrupacion_literaria(session: Session) -> str:
-    """
-    Ejemplo: Insertar agrupación literaria 'Generación de 1930'
-    Returns: ID de la Agrupación
-    """
-    ficha_id = uuid_ficha("GEN1930")
+    ficha_id = uuid_ficha("GRUPO_GUAYANA")
     
     cypher = """
     CREATE (ag:Agrupacion {
         fichaId: $ficha_id,
-        nombre: 'Generación de 1930',
-        lugar_encuentros_ciudad: 'Quito',
-        lugar_encuentros_pais: 'Ecuador',
-        fecha_inicio: '1930',
-        fecha_culminacion: '1945',
-        caracteristica_general: 'Movimiento literario ecuatoriano enfocado en la narrativa social y realismo',
-        actividades: 'Tertulias en cafés de Quito, lecturas públicas, colaboraciones en revistas culturales'
+        nombre: 'Grupo Literario Guayana',
+        lugar_encuentros_ciudad: 'Ciudad Bolívar',
+        lugar_encuentros_municipio: 'Angostura del Orinoco',
+        fecha_inicio: '1970',
+        fecha_culminacion: '1985',
+        caracteristica_general: 'Colectivo enfocado en revitalizar la identidad poética e histórica del sur de Venezuela',
+        actividades: 'Tertulias a orillas del Orinoco, talleres de escritura en la Casa de las Doce Ventanas'
     })
     
-    // Crear publicación de la agrupación
     CREATE (ag)-[:PUBLICO]->(pub:PublicacionAgrupacion {
-        titulo: 'Revista de las Letras',
-        anio: '1935',
-        resumen: 'Revista colaborativa de poesía y ensayo'
+        titulo: 'Cuadernos del Sur',
+        anio: '1974',
+        resumen: 'Folleto colaborativo de crónicas regionales y versos antológicos'
     })
     
     RETURN ag.fichaId AS agrupacionId
@@ -150,25 +135,20 @@ def insertar_agrupacion_literaria(session: Session) -> str:
 
 
 def insertar_revista_literaria(session: Session) -> str:
-    """
-    Ejemplo: Insertar revista literaria 'El Telégrafo Literario'
-    Returns: ID de la Revista
-    """
-    ficha_id = uuid_ficha("TELEGRAFO")
+    ficha_id = uuid_ficha("REV_ORINOCO")
     
     cypher = """
     CREATE (r:Revista {
         fichaId: $ficha_id,
-        titulo: 'El Telégrafo Literario',
-        fecha_primer_numero: '1885-01',
-        fecha_ultimo_numero: '1900-12',
-        numeros_publicados: 'Volumes 1-15, números mensuales',
-        lugar_publicacion_ciudad: 'Guayaquil',
-        lugar_publicacion_pais: 'Ecuador',
-        editorial: 'Imprenta Nacional',
-        secciones: 'Prosa, Poesía, Crítica Literaria, Noticias',
-        descripcion: 'Revista de difusión literaria ecuatoriana con colaboraciones de autores reconocidos',
-        idioma_original: 'español'
+        titulo: 'Orinoco Cultural',
+        fecha_primer_numero: '1952-05',
+        fecha_ultimo_numero: '1965-12',
+        numeros_publicados: 'Números 1 al 24',
+        lugar_publicacion_ciudad: 'Ciudad Bolívar',
+        editorial: 'Imprenta Regional',
+        secciones: 'Crónica, Poesía de la Selva, Reseñas Históricas',
+        descripcion: 'Revista clave para entender el movimiento intelectual del Estado Bolívar a mediados de siglo',
+        idioma_original: 'Español'
     })
     
     RETURN r.fichaId AS revistaId
@@ -179,24 +159,20 @@ def insertar_revista_literaria(session: Session) -> str:
 
 
 def insertar_mito_leyenda(session: Session) -> str:
-    """
-    Ejemplo: Insertar mito/leyenda 'La Laguna de Yambo' (Tungurahua, Ecuador)
-    Returns: ID del MitoLeyenda
-    """
-    ficha_id = uuid_ficha("YAMBO")
+    ficha_id = uuid_ficha("SERPIENTE")
     
     cypher = """
     CREATE (ml:MitoLeyenda {
         fichaId: $ficha_id,
-        titulo: 'La Laguna de Yambo',
-        comunidad_creadora: 'Comunidades indígenas de Tungurahua',
-        lugar_difusion_ciudad: 'Ambato',
-        lugar_difusion_provincia: 'Tungurahua',
-        lugar_difusion_pais: 'Ecuador',
-        idioma_original: 'kichwa',
-        tema_principal: 'Cosmogonía andina, espíritus de agua',
-        descripcion: 'Leyenda sobre una laguna encantada que guarda tesoros y castiga a los avaros',
-        texto_completo: 'Hace muchos años, en la laguna de Yambo vivía una hermosa doncella que era la guardiana del agua...'
+        titulo: 'La Serpiente de Siete Cabezas',
+        comunidad_creadora: 'Tradición oral popular de Ciudad Bolívar',
+        lugar_difusion_ciudad: 'Ciudad Bolívar',
+        lugar_difusion_estado: 'Bolívar',
+        lugar_difusion_pais: 'Venezuela',
+        idioma_original: 'Español',
+        tema_principal: 'Mitos del río Orinoco y la Piedra del Medio',
+        descripcion: 'Leyenda urbana que afirma que una colosal serpiente duerme bajo la Piedra del Medio y controla las crecidas del río.',
+        texto_completo: 'Dicen los viejos lancheros del Orinoco que debajo de la Piedra del Medio habita una criatura gigantesca...'
     })
     
     RETURN ml.fichaId AS mitoId
@@ -207,61 +183,42 @@ def insertar_mito_leyenda(session: Session) -> str:
 
 
 def main():
-    """Ejecutar ejemplos de inserción."""
-    config = load_config()
-    
-    # Conectar a Neo4j
-    driver = GraphDatabase.driver(
-        config["neo4j_uri"],
-        auth=(config["neo4j_username"], config["neo4j_password"])
-    )
-    
+    # Usamos la conexión reutilizable global 'db' que creamos en el paso anterior
+    if not db.test_connection():
+        return
+        
     try:
-        with driver.session() as session:
-            print("🚀 Insertando datos de ejemplo en Neo4j...")
+        with db.driver.session() as session:
+            print("🚀 Insertando datos reales del Estado Bolívar en Neo4j...")
+            print("-" * 50)
             
-            # Ejemplo 1: Autor con obras y crítica
-            print("\n1️⃣  Insertando Autor 'Juan Montalvo'...")
-            autor_id = insertar_autor_con_obras_y_critica(session, config)
-            print(f"   ✅ Autor creado: {autor_id}")
+            autor_id = insertar_autor_con_obras_y_critica(session)
+            print(f"   ✅ Autor Creado (Jean Aristeguieta): {autor_id}")
             
-            # Ejemplo 2: Agrupación literaria
-            print("\n2️⃣  Insertando Agrupación 'Generación de 1930'...")
             agrupacion_id = insertar_agrupacion_literaria(session)
-            print(f"   ✅ Agrupación creada: {agrupacion_id}")
+            print(f"   ✅ Agrupación Creada (Grupo Guayana): {agrupacion_id}")
             
-            # Ejemplo 3: Revista literaria
-            print("\n3️⃣  Insertando Revista 'El Telégrafo Literario'...")
             revista_id = insertar_revista_literaria(session)
-            print(f"   ✅ Revista creada: {revista_id}")
+            print(f"   ✅ Revista Creada (Orinoco Cultural): {revista_id}")
             
-            # Ejemplo 4: Mito/Leyenda
-            print("\n4️⃣  Insertando Mito 'La Laguna de Yambo'...")
             mito_id = insertar_mito_leyenda(session)
-            print(f"   ✅ Mito/Leyenda creado: {mito_id}")
+            print(f"   ✅ Mito Creado (Serpiente 7 Cabezas): {mito_id}")
             
-            # Verificar datos insertados
-            print("\n📊 Verificando datos insertados...")
+            # --- VERIFICACIÓN DE CONTEO ---
+            print("\n📊 Resumen actual de la Base de Datos:")
             resultado = session.run("""
-                MATCH (a:Autor), (o:Obra), (c:Critica), (ag:Agrupacion), (r:Revista), (ml:MitoLeyenda)
-                RETURN count(a) as autores, count(o) as obras, count(c) as criticas, 
-                       count(ag) as agrupaciones, count(r) as revistas, count(ml) as mitos
+                MATCH (n) 
+                RETURN labels(n)[0] as etiqueta, count(n) as total
             """)
-            stats = resultado.single()
-            print(f"   Autores: {stats['autores']}")
-            print(f"   Obras: {stats['obras']}")
-            print(f"   Críticas: {stats['criticas']}")
-            print(f"   Agrupaciones: {stats['agrupaciones']}")
-            print(f"   Revistas: {stats['revistas']}")
-            print(f"   Mitos/Leyendas: {stats['mitos']}")
+            for registro in resultado:
+                print(f"   - {registro['etiqueta']}: {registro['total']} nodos.")
+                
+            print("\n🎉 ¡Inserción completada con éxito y sin errores de sintaxis!")
             
-            print("\n✅ Inserción de ejemplo completada.")
-    
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Falló la inserción de datos: {e}")
     finally:
-        driver.close()
-
+        db.close()
 
 if __name__ == "__main__":
     main()
