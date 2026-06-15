@@ -1,0 +1,11 @@
+{
+  "name": "proyecto-2-ia-fichas-literarias",
+  "private": true,
+
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "lint": "pnpm --filter web lint"
+  },
+  "packageManager": "pnpm@10.26.0"
+}

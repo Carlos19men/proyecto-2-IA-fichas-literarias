@@ -17,7 +17,7 @@ class Neo4jConnection:
             # Inicializar el driver oficial de Neo4j
             self.driver = GraphDatabase.driver(self.uri, auth=(self.user, self.password))
         except Exception as e:
-            print(f"❌ Error crítico al inicializar el Driver de Neo4j: {e}")
+            print(f"[connection] Error critico al inicializar el Driver de Neo4j: {e}")
 
     def close(self):
         if self.driver:
@@ -26,18 +26,18 @@ class Neo4jConnection:
     def test_connection(self) -> bool:
         """Verifica si el contenedor de Docker responde correctamente"""
         if not self.driver:
-            print("❌ No se ha inicializado el driver de la base de datos.")
+            print("[connection] No se ha inicializado el driver de la base de datos.")
             return False
         try:
             # Intentamos una consulta ultra rápida para validar credenciales y estado
             self.driver.verify_connectivity()
-            print(f"🔌 Conexión exitosa con Neo4j Docker en {self.uri}")
+            print(f"[connection] Conexion exitosa con Neo4j Docker en {self.uri}")
             return True
         except Exception as e:
-            print("\n❌ error de conexión: El contenedor Neo4j no está listo o las credenciales fallaron.")
-            print(f"Detalle técnico del error: {e}")
-            print("\n💡 SOLUCIÓN RECOMENDADA:")
-            print("1. Verifica que tu docker esté corriendo ejecutando: docker ps")
+            print("\n[connection] error de conexion: El contenedor Neo4j no esta listo o las credenciales fallaron.")
+            print(f"Detalle tecnico del error: {e}")
+            print("\nSOLUCION RECOMENDADA:")
+            print("1. Verifica que tu docker este corriendo ejecutando: docker ps")
             print("2. Revisa que tu archivo src/.env tenga las claves correctas.")
             return False
 
