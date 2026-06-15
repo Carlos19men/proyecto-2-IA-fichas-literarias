@@ -4,7 +4,6 @@ from src.config import Config
 from src.ingestion.schemas import FichaLiterariaSchema
 
 def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
-
     """
     Envía el texto crudo a Ollama y fuerza una respuesta estructurada en JSON.
     
@@ -14,17 +13,17 @@ def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
     - Relaciones (obras, críticas, agrupaciones, revistas, antologías, mitos/leyendas)
     """
 
-    # 1. Configurar el modelo (Temperatura 0 para evitar alucinaciones)
+    # 1. Configurar el modelo (Temperatura 0 para evitar alucinaciones y asegurar consistencia)
     llm = ChatOllama(
         base_url=Config.OLLAMA_BASE_URL,
         model=Config.OLLAMA_MODEL,
         temperature=0 
     )
 
-    # 2. Obligar al modelo a usar el esquema de Pydantic
+    # 2. Obligar al modelo a usar el esquema detallado de Pydantic
     llm_estructurado = llm.with_structured_output(FichaLiterariaSchema)
 
-    # 3. Crear el Prompt (Instrucciones claras para la IA)
+    # 3. Crear el Prompt con instrucciones claras sobre la nueva estructura
     prompt = ChatPromptTemplate.from_messages([
         ("system", """Eres un experto analista literario e historiador cultural. 
 Tu tarea es extraer información del texto y estructurarla exactamente como se te pide.
@@ -40,10 +39,8 @@ REGLAS:
         ("human", "Extrae la información de esta ficha literaria:\n\n{texto}")
     ]) 
 
-    # 4. Unir el prompt y el modelo en una "Cadena" (Chain) y ejecutar
+    # 4. Unir el prompt y el modelo en una cadena de ejecución (Chain) y ejecutar
     cadena = prompt | llm_estructurado
-    resultado = cadena.invoke({"texto": texto_ficha})
+    resultado = chain_output = cadena.invoke({"texto": texto_ficha})
 
     return resultado
-
-
