@@ -1,0 +1,288 @@
+@import "tailwindcss";
+
+/* ============================================================
+   LETRASCOPIO — SISTEMA DE DISEÑO
+   Tema Claro: "Papel y Tinta"
+   Tema Oscuro: "Biblioteca Nocturna"
+   ============================================================ */
+
+@theme {
+  /* --- Tipografía --- */
+  --font-playfair: var(--font-playfair);
+  --font-inter: var(--font-inter);
+
+  /* --- Colores base (se sobreescriben con .dark) --- */
+  --color-bg-primary: #FAF8F5;
+  --color-bg-secondary: #F0ECE6;
+  --color-bg-card: #FFFFFF;
+  --color-accent: #1A3A5C;
+  --color-accent-light: #2E6DA4;
+  --color-accent-muted: #E8F0F8;
+  --color-text-primary: #1C1C1E;
+  --color-text-muted: #6B6B6B;
+  --color-border: #DDD8D0;
+  --color-border-strong: #C5BEB4;
+
+  /* --- Sombras --- */
+  --shadow-card: 0 2px 16px 0 rgba(26, 58, 92, 0.08);
+  --shadow-card-hover: 0 8px 32px 0 rgba(26, 58, 92, 0.15);
+  --shadow-input: 0 0 0 3px rgba(26, 58, 92, 0.15);
+
+  /* --- Radio --- */
+  --radius-card: 16px;
+  --radius-bubble: 12px;
+  --radius-chip: 20px;
+  --radius-input: 12px;
+}
+
+/* ============================================================
+   DARK MODE — "Biblioteca Nocturna"
+   ============================================================ */
+.dark {
+  --color-bg-primary: #16181D;
+  --color-bg-secondary: #1E2128;
+  --color-bg-card: #252830;
+  --color-accent: #4A9EE8;
+  --color-accent-light: #6FB8FF;
+  --color-accent-muted: #1A2A3A;
+  --color-text-primary: #E8E6E1;
+  --color-text-muted: #9B9B9B;
+  --color-border: #2E3138;
+  --color-border-strong: #3E4148;
+  --shadow-card: 0 2px 16px 0 rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  --shadow-input: 0 0 0 3px rgba(74, 158, 232, 0.25);
+}
+
+/* ============================================================
+   VARIABLES CSS GLOBALES
+   ============================================================ */
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
+
+/* ============================================================
+   ESTILOS BASE
+   ============================================================ */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-inter), system-ui, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ============================================================
+   TIPOGRAFÍA
+   ============================================================ */
+.font-playfair {
+  font-family: var(--font-playfair), Georgia, serif;
+}
+.font-inter {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-playfair), Georgia, serif;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================
+   SCROLLBAR PERSONALIZADA
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* ============================================================
+   ANIMACIONES GLOBALES
+   ============================================================ */
+
+/* Fade + slide up */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Typing cursor blink */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Pulse glow para el logo */
+@keyframes glowPulse {
+  0%, 100% { text-shadow: 0 0 0px transparent; }
+  50%       { text-shadow: 0 0 20px rgba(74, 158, 232, 0.4); }
+}
+
+/* Shimmer para skeleton loaders */
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position: 200% center; }
+}
+
+/* Waveform bar */
+@keyframes waveBar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+
+.animate-fade-slide-up {
+  animation: fadeSlideUp 0.5s ease forwards;
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* ============================================================
+   COMPONENTES REUTILIZABLES
+   ============================================================ */
+
+/* Chip de sugerencia */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-chip);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.chip:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+/* Botón primario */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: var(--radius-input);
+  background: var(--color-accent);
+  color: #FFFFFF;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+.btn-primary:hover {
+  background: var(--color-accent-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Botón ghost */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+.btn-ghost:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-muted);
+}
+
+/* Card base */
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Input de búsqueda/chat */
+.input-field {
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: var(--radius-input);
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input-field::placeholder {
+  color: var(--color-text-muted);
+}
+.input-field:focus {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-input);
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-secondary) 25%,
+    var(--color-border) 50%,
+    var(--color-bg-secondary) 75%
+  );
+  background-size: 200% auto;
+  border-radius: 6px;
+  animation: shimmer 1.5s linear infinite;
+}
