@@ -28,6 +28,7 @@ from src.ingestion.schemas import (
     AntologiaSchema,
     MitoLeyendaSchema,
     Multimedia,
+    ChunkSchema,
     Lugar,
     Persona,
 )
@@ -38,8 +39,37 @@ from src.ingestion.schemas import (
 # ---------------------------------------------------------------------------
 
 def _nuevo_id(prefijo: str = "FICHA") -> str:
-    """Genera un fichaId único con UUID corto."""
+    """Genera un id único con UUID corto."""
     return f"{prefijo}_{uuid.uuid4().hex[:8].upper()}"
+
+
+def _upsert_chunk(session: Session, chunk: ChunkSchema, autor_nombres: str, autor_apellidos: str) -> str:
+    """Inserta o actualiza un nodo Chunk y lo vincula al autor."""
+    props = _limpiar({
+        "chunk_id": chunk.chunk_id,
+        "source_file": chunk.source_file,
+        "order": chunk.order,
+        "texto": chunk.texto,
+        "metadata": chunk.metadata,
+        "embedding": chunk.embedding,
+    })
+
+    session.run(
+        """
+        MERGE (c:Chunk {chunk_id: $chunk_id})
+        ON CREATE SET c += $props
+        ON MATCH  SET c += $props
+        WITH c
+        MATCH (a:Autor {nombres: $nombres, apellidos: $apellidos})
+        MERGE (a)-[:TIENE_CHUNK]->(c)
+        """,
+        chunk_id=chunk.chunk_id,
+        props=props,
+        nombres=autor_nombres,
+        apellidos=autor_apellidos,
+    )
+
+    return chunk.chunk_id
 
 
 def _lugar_a_props(lugar: Optional[Lugar], prefijo: str) -> dict:
@@ -84,6 +114,7 @@ def _upsert_autor(session: Session, autor: AutorSchema) -> str:
         "genero_principal":   autor.genero_principal,
         "imagen_autor":       autor.imagen_autor,
         "audio_voz":          autor.audio_voz,
+        "text":               autor.text,
         **_lugar_a_props(autor.lugar_nacimiento, "lugar_nacimiento"),
         **_lugar_a_props(autor.lugar_fallecimiento, "lugar_fallecimiento"),
     })
@@ -356,10 +387,11 @@ def insertar_ficha(ficha: FichaLiterariaSchema, session: Session) -> None:
     2. Obras del autor + relación ESCRIBIO
     3. Críticas del autor + relación CRITICA_DE
     4. Multimedia del autor + obras
-    5. Agrupaciones + relación PERTENECE_A
-    6. Revistas + relación PARTICIPO_EN
-    7. Antologías + relación INCLUIDO_EN
-    8. Mitos y Leyendas + relación RELACIONADO_CON
+    5. Chunks del documento + relación TIENE_CHUNK
+    6. Agrupaciones + relación PERTENECE_A
+    7. Revistas + relación PARTICIPO_EN
+    8. Antologías + relación INCLUIDO_EN
+    9. Mitos y Leyendas + relación RELACIONADO_CON
     """
     autor = ficha.autor
     n = autor.nombres
@@ -381,6 +413,10 @@ def insertar_ficha(ficha: FichaLiterariaSchema, session: Session) -> None:
     # Multimedia del autor
     for media in autor.multimedia:
         _upsert_multimedia(session, media, "Autor", {"nombres": n, "apellidos": ap})
+
+    # Chunks
+    for chunk in ficha.chunks:
+        _upsert_chunk(session, chunk, n, ap)
 
     # Agrupaciones
     for ag in ficha.agrupaciones:
@@ -404,4 +440,4 @@ def insertar_ficha(ficha: FichaLiterariaSchema, session: Session) -> None:
         for media in mito.multimedia:
             _upsert_multimedia(session, media, "MitoLeyenda", {"titulo": mito.titulo})
 
-    print(f"   ✅ Ficha guardada: {n} {ap} | Obras: {len(autor.obras)} | Críticas: {len(autor.criticas)}")
+    print(f"   ✅ Ficha guardada: {n} {ap} | Obras: {len(autor.obras)} | Críticas: {len(autor.criticas)} | Chunks: {len(ficha.chunks)}")

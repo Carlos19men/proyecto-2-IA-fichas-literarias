@@ -2,6 +2,10 @@
 .venv/
 venv/
 env/
+Diccionario/
+logs/
+
+Diccionario.rar
 
 # Archivos compilados de Python (Caché del sistema)
 __pycache__/

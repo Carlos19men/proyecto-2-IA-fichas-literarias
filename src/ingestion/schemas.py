@@ -26,6 +26,15 @@ class Multimedia(BaseModel):
     restriccion: Optional[str] = Field(None, description="Restricción de acceso: público, privado, restringido")
     embedding: Optional[List[float]] = Field(None, description="Vector de 768 dimensiones para búsqueda semántica")
 
+class ChunkSchema(BaseModel):
+    """Chunk de texto extraído antes de subir a Neo4j."""
+    chunk_id: str = Field(description="Identificador único del chunk")
+    source_file: str = Field(description="Archivo de origen del chunk")
+    order: int = Field(description="Orden del chunk dentro del documento")
+    texto: str = Field(description="Texto del chunk")
+    metadata: Optional[dict] = Field(default_factory=dict, description="Metadata adicional del chunk")
+    embedding: Optional[List[float]] = Field(None, description="Embedding vectorial del chunk")
+
 class PublicacionAgrupacion(BaseModel):
     """Publicación generada por una agrupación literaria."""
     titulo: str = Field(description="Título de la publicación")
@@ -90,8 +99,12 @@ class AutorSchema(BaseModel):
     # Archivos y Multimedia
     imagen_autor: Optional[str] = Field(None, description="URL o ruta de imagen JPG del autor")
     audio_voz: Optional[str] = Field(None, description="URL o ruta de audio MP3 (voz del autor)")
+    embedding: Optional[List[float]] = Field(None, description="Embedding vectorial para búsquedas semánticas")
     multimedia: List[Multimedia] = Field(default=[], description="Multimedia adicional: documentos, fotos, videos")
     
+    # Resumen biográfico generado por el sistema (persistido como `text` en Neo4j)
+    text: Optional[str] = Field(None, description="Resumen biográfico generado (campo 'text' para persistencia)")
+
     # Relaciones
     obras: List[ObraSchema] = Field(default=[], description="Lista de obras escritas por el autor")
     criticas: List[CriticaSchema] = Field(default=[], description="Críticas y reseñas sobre el autor")
@@ -167,3 +180,6 @@ class FichaLiterariaSchema(BaseModel):
     
     # Tradiciones culturales
     mitos_leyendas: List[MitoLeyendaSchema] = Field(default=[], description="Mitos o leyendas relacionados")
+    
+    # Chunks de texto procesados
+    chunks: List[ChunkSchema] = Field(default=[], description="Chunks de texto generados para embeddings y búsquedas vectoriales")

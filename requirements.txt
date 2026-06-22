@@ -18,3 +18,8 @@ python-dotenv>=1.0.0
 
 # --- ENTORNO DE PRUEBAS (Opcional pero recomendado para la carpeta /notebooks) ---
 notebook>=7.0.0
+
+# --- CONVERSIÓN DE DOCUMENTOS (Opcional, para convertir .docx a Markdown) ---
+pypandoc
+mammoth
+PyMuPDF

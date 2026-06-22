@@ -7,7 +7,7 @@ directamente en el objeto FichaLiterariaSchema antes de guardarlo en Neo4j.
 from typing import List, Optional
 from langchain_ollama import OllamaEmbeddings
 from src.config import Config
-from src.ingestion.schemas import FichaLiterariaSchema, CriticaSchema, Multimedia
+from src.ingestion.schemas import FichaLiterariaSchema, ChunkSchema, CriticaSchema, Multimedia
 
 
 # ---------------------------------------------------------------------------
@@ -58,8 +58,7 @@ def poblar_embeddings(ficha: FichaLiterariaSchema) -> FichaLiterariaSchema:
 
     # 2. Embedding del Autor
     texto_autor = _texto_autor(ficha)
-    # Añadimos el embedding al modelo; AutorSchema lo acepta como campo extra si se define
-    # (actualmente no tiene el campo, se agrega dinámicamente para no romper el schema)
+    ficha.autor.embedding = generar_embedding(texto_autor)
 
     # 3. Embeddings de multimedia del autor
     for media in ficha.autor.multimedia:
@@ -88,6 +87,10 @@ def poblar_embeddings(ficha: FichaLiterariaSchema) -> FichaLiterariaSchema:
     for mito in ficha.mitos_leyendas:
         for media in mito.multimedia:
             media.embedding = generar_embedding(media.enlace)
+
+    # 9. Embeddings de chunks
+    for chunk in ficha.chunks:
+        chunk.embedding = generar_embedding(chunk.texto)
 
     print("✅ Embeddings generados correctamente.")
     return ficha

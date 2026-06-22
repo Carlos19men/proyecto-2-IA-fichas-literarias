@@ -147,6 +147,7 @@ class FichaUploader:
         MERGE (a:Autor {nombres: $nombres})
         ON CREATE SET
             a.fichaId = $fichaId,
+            a.text = $text,
             a.apellidos = $apellidos,
             a.nombre_completo = $nombre_completo,
             a.sexo = $sexo,
@@ -171,6 +172,7 @@ class FichaUploader:
             a.timestamp = datetime()
         ON MATCH SET
             a.fichaId = $fichaId,
+            a.text = $text,
             a.apellidos = $apellidos,
             a.nombre_completo = $nombre_completo,
             a.sexo = $sexo,
@@ -199,6 +201,7 @@ class FichaUploader:
         session.run(
             cypher,
             fichaId=autor_id,
+            text=bio_texto,
             nombres=autor.nombres,
             apellidos=autor.apellidos,
             nombre_completo=nombre_completo,

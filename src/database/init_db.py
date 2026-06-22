@@ -132,7 +132,19 @@ def _crear_indices_vectoriales(session):
             }
         """)
 
-        print("✅ Índices vectoriales creados con éxito (Critica, Autor, Multimedia — 768 dims, cosine).")
+        # 4. Índice para Chunks
+        session.run("""
+            CREATE VECTOR INDEX index_chunks_vector IF NOT EXISTS
+            FOR (c:Chunk) ON (c.embedding)
+            OPTIONS {
+              indexConfig: {
+                `vector.dimensions`: 768,
+                `vector.similarity_function`: "cosine"
+              }
+            }
+        """)
+
+        print("✅ Índices vectoriales creados con éxito (Critica, Autor, Multimedia, Chunk — 768 dims, cosine).")
     except Exception as e:
         print(f"⚠️  No se pudieron crear índices vectoriales (ver versión Neo4j / configuración): {e}")
 

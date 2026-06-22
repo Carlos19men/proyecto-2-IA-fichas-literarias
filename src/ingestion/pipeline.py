@@ -3,6 +3,7 @@ Pipeline de ingesta de datos literarios.
 
 Flujo completo para una carpeta de ficha:
   escanear_carpeta_ficha(carpeta)
+    → convertir_a_markdown(ruta)             [preprocess.py]
     → leer_texto_principal(carpeta)          [loaders.py]
     → extraer_json_de_ficha(texto)           [extractor.py]
     → adjuntar_multimedia(ficha, archivos)   [este módulo]
@@ -19,12 +20,16 @@ from typing import Optional
 
 from src.ingestion.loaders import (
     escanear_carpeta_ficha,
+    leer_archivo_ficha,
     leer_texto_principal,
     clasificar_archivo,
 )
 from src.ingestion.extractor import extraer_json_de_ficha
 from src.ingestion.embeddings import poblar_embeddings
-from src.ingestion.schemas import FichaLiterariaSchema, Multimedia
+from src.ingestion.schemas import FichaLiterariaSchema, Multimedia, ChunkSchema, ObraSchema
+from src.ingestion.preprocess import convert_to_markdown
+from src.ingestion.chunking import chunk_text
+from src.ingestion.validator import validate_ficha_evidence
 
 
 # ---------------------------------------------------------------------------
@@ -109,12 +114,99 @@ def procesar_carpeta(
 
         # Paso 2 — Leer texto principal y extraer con LLM
         print("📄 Paso 2/4: Leyendo texto y extrayendo con IA...")
-        texto, ruta_leida = leer_texto_principal(carpeta)
+        # intentar obtener la ruta principal (usar leer_texto_principal existente para elegir)
+        try:
+            ruta_principal = leer_texto_principal(carpeta)[1]
+        except Exception:
+            ruta_principal = None
+
+        ruta_md = None
+        if ruta_principal:
+            ruta_md = convert_to_markdown(ruta_principal)
+
+        # si conversion exitosa usamos el .md, si no usamos la función de lectura normal
+        if ruta_md:
+            texto = leer_archivo_ficha(ruta_md)
+            ruta_leida = ruta_md
+        else:
+            texto, ruta_leida = leer_texto_principal(carpeta)
         print(f"   → Archivo leído: {Path(ruta_leida).name} ({len(texto)} caracteres)")
 
+        # Paso intermedio: dividir el Markdown en chunks antes de extraer e insertar.
+        print("✂️  Paso 2.1: Dividiendo en chunks para búsquedas vectoriales...")
+        ficha_chunks = chunk_text(texto, Path(ruta_leida).name)
+
         ficha: FichaLiterariaSchema = extraer_json_de_ficha(texto)
+        ficha.chunks = [ChunkSchema(**chunk) for chunk in ficha_chunks]
+
+        # Normalizaciones: asegurar nombre_completo y mapear posibles obras encontradas
+        try:
+            autor = ficha.autor
+            if not getattr(autor, "nombre_completo", None):
+                n = getattr(autor, "nombres", None)
+                a = getattr(autor, "apellidos", None)
+                if n and a:
+                    autor.nombre_completo = f"{n} {a}"
+        except Exception:
+            pass
+
+        # Intentar extraer seudónimo del texto si no lo trajo el extractor
+        try:
+            if not getattr(ficha.autor, "seudonimo", None) and texto:
+                import re
+                m = re.search(r"pseud[oó]nimo(?:\s+de)?[:\s\"]*([A-Za-zÁÉÍÓÚáéíóúÑñ\-]+)", texto, flags=re.IGNORECASE)
+                if m:
+                    ficha.autor.seudonimo = m.group(1)
+        except Exception:
+            pass
+
+        # Si el extractor colocó obras en top-level `mitos_leyendas` o `revistas`, mapearlas a autor.obras
+        try:
+            if not getattr(ficha.autor, "obras", None):
+                obras_mapeadas = []
+                for source_name in ("mitos_leyendas", "revistas"):
+                    items = getattr(ficha, source_name, None)
+                    if not items:
+                        continue
+                    for m in items:
+                        if isinstance(m, dict):
+                            titulo = m.get("titulo")
+                            descripcion = m.get("descripcion") or m.get("tema_principal") or m.get("genero")
+                            fecha_publicacion = m.get("fecha_publicacion") or m.get("fecha_primer_numero") or ""
+                            lugar = m.get("lugar_publicacion") or m.get("lugar_difusion")
+                            idioma = m.get("idioma_original")
+                        else:
+                            titulo = getattr(m, "titulo", None)
+                            descripcion = getattr(m, "descripcion", None) or getattr(m, "tema_principal", None) or getattr(m, "genero", None)
+                            fecha_publicacion = getattr(m, "fecha_publicacion", None) or getattr(m, "fecha_primer_numero", None) or ""
+                            lugar = getattr(m, "lugar_publicacion", None) or getattr(m, "lugar_difusion", None)
+                            idioma = getattr(m, "idioma_original", None)
+                        obras_mapeadas.append(
+                            ObraSchema(
+                                titulo=titulo or "",
+                                genero=descripcion or "desconocido",
+                                fecha_publicacion=fecha_publicacion,
+                                lugar_publicacion=lugar if isinstance(lugar, dict) else None,
+                                editorial=None,
+                                descripcion=descripcion,
+                                idioma_original=idioma or "español",
+                                multimedia=[],
+                            )
+                        )
+                if obras_mapeadas:
+                    ficha.autor.obras = obras_mapeadas
+        except Exception:
+            pass
+
+        # Validar evidencia en obras y críticas antes de proseguir a embeddings/inserción
+        try:
+            ficha, removed = validate_ficha_evidence(ficha)
+        except Exception:
+            removed = {"obras": [], "criticas": []}
+
         print(f"   → Autor detectado: {ficha.autor.nombres} {ficha.autor.apellidos}")
-        print(f"   → Obras: {len(ficha.autor.obras)} | Críticas: {len(ficha.autor.criticas)}")
+        print(f"   → Obras (verificadas): {len(ficha.autor.obras)} | Críticas (verificadas): {len(ficha.autor.criticas)}")
+        print(f"   → Chunks generados: {len(ficha.chunks)}")
 
         # Paso 3 — Adjuntar multimedia de la carpeta
         print("🖼️  Paso 3/4: Adjuntando multimedia de la carpeta...")
