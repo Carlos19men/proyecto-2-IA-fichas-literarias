@@ -1,9 +1,9 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # --- 1. BASE DE DATOS DE GRAFOS (GraphRAG y Producción) ---
   neo4j:
-    image: neo4j:5.15.0-community  # Versión recomendada en tu MD para evitar errores de índices vectoriales
+    image: neo4j:5.15.0-community # Versión recomendada en tu MD para evitar errores de índices vectoriales
     container_name: neo4j_literario # Nombre exacto que busca tu sección de Troubleshooting
     ports:
       - "7474:7474" # Interfaz gráfica web (Neo4j Browser)
@@ -49,3 +49,22 @@ volumes:
 networks:
   letrascopio_network:
     driver: bridge
+
+  # --- 3. ADMIN DASHBOARD (Next.js) ---
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: letrascopio_admin
+    ports:
+      - "3000:3000" # Puerto para el dashboard admin
+    environment:
+      - NODE_ENV=production
+      # Puedes agregar variables de entorno específicas aquí
+      # - NEXT_PUBLIC_API_URL=http://api:8000
+    networks:
+      - letrascopio_network
+    restart: unless-stopped
+    depends_on:
+      - neo4j
+      - mongodb
