@@ -104,7 +104,7 @@ self.__SERVER_FILES_MANIFEST={
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "C:\\Users\\freit\\OneDrive\\Escritorio\\proyecto-2-IA-fichas-literarias",
+    "outputFileTracingRoot": "C:\\Users\\HP\\Desktop\\proyect\\proyecto-de-IA-2",
     "cacheComponents": false,
     "cacheLife": {
       "default": {
@@ -166,7 +166,7 @@ self.__SERVER_FILES_MANIFEST={
       "proxyPrefetch": "flexible",
       "optimisticClientCache": true,
       "manualClientBasePath": false,
-      "cpus": 7,
+      "cpus": 3,
       "memoryBasedWorkersCount": false,
       "imgOptConcurrency": null,
       "imgOptTimeoutInSeconds": 7,
@@ -304,11 +304,11 @@ self.__SERVER_FILES_MANIFEST={
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.ts",
     "turbopack": {
-      "root": "C:\\Users\\freit\\OneDrive\\Escritorio\\proyecto-2-IA-fichas-literarias"
+      "root": "C:\\Users\\HP\\Desktop\\proyect\\proyecto-de-IA-2"
     },
     "distDirRoot": ".next"
   },
-  "appDir": "C:\\Users\\freit\\OneDrive\\Escritorio\\proyecto-2-IA-fichas-literarias\\apps\\admin",
+  "appDir": "C:\\Users\\HP\\Desktop\\proyect\\proyecto-de-IA-2\\apps\\admin",
   "relativeAppDir": "apps\\admin",
   "files": [
     ".next\\package.json",
