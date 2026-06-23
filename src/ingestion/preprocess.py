@@ -64,6 +64,42 @@ def _extract_media_with_pymupdf(ruta: str, out_dir: str) -> bool:
         return False
 
 
+def clean_markdown_text(text: str) -> str:
+    """
+    Limpia el texto Markdown generado para eliminar ruido común de la conversión:
+    - Colapsa saltos de línea excesivos (más de 2 consecutivos a 2).
+    - Colapsa espacios horizontales múltiples a uno solo.
+    - Elimina líneas que contienen únicamente números de página (ej: 'Pág. 12', '12').
+    - Limpia espacios al inicio y final de las líneas.
+    """
+    import re
+    if not text:
+        return ""
+    # 1. Eliminar números de página y líneas de numeración solitaria (ej: "Pág. 5", "5")
+    text = re.sub(r"(?m)^\s*(?:p[aá]g\.|p[aá]gina|pagina)?\s*\d+\s*$", "", text)
+    
+    # 2. Limpiar espacios en blanco al inicio/final de cada línea y colapsar espacios internos
+    lines = [line.strip() for line in text.splitlines()]
+    
+    # 3. Eliminar líneas vacías duplicadas consecutivas y colapsar espacios
+    cleaned_lines = []
+    for line in lines:
+        if line:
+            # Colapsar espacios múltiples en la misma línea
+            line = re.sub(r"[ \t]+", " ", line)
+            cleaned_lines.append(line)
+        else:
+            if not cleaned_lines or cleaned_lines[-1] != "":
+                cleaned_lines.append("")
+                
+    cleaned_text = "\n".join(cleaned_lines)
+    
+    # 4. Asegurar que no queden más de 2 saltos de línea consecutivos
+    cleaned_text = re.sub(r"\n{3,}", "\n\n", cleaned_text)
+    
+    return cleaned_text.strip()
+
+
 def convert_to_markdown(ruta: str) -> str | None:
     """Convert a source file to Markdown and try to extract multimedia.
 
@@ -92,6 +128,15 @@ def convert_to_markdown(ruta: str) -> str | None:
     if pypandoc is not None:
         try:
             pypandoc.convert_file(ruta, "md", outputfile=md)
+            # Apply cleaning to the pandoc output
+            try:
+                with open(md, "r", encoding="utf-8") as f:
+                    content = f.read()
+                cleaned = clean_markdown_text(content)
+                with open(md, "w", encoding="utf-8") as f:
+                    f.write(cleaned)
+            except Exception:
+                pass
             # For PDFs, also attempt media extraction below
             if ext == ".pdf":
                 # try marker-pdf then pymupdf
@@ -112,6 +157,8 @@ def convert_to_markdown(ruta: str) -> str | None:
                 md_text = pypandoc.convert_text(html, "md", format="html")
             else:
                 md_text = html
+            # Clean text before writing
+            md_text = clean_markdown_text(md_text)
             with open(md, "w", encoding="utf-8") as out:
                 out.write(md_text)
             return md
@@ -123,9 +170,12 @@ def convert_to_markdown(ruta: str) -> str | None:
         txt_tmp = md + ".txt"
         try:
             subprocess.run(["pdftotext", ruta, txt_tmp], check=True)
-            # convert txt to md (plain)
-            with open(txt_tmp, "r", encoding="utf-8") as f_in, open(md, "w", encoding="utf-8") as f_out:
-                f_out.write(f_in.read())
+            # convert txt to md (plain) and clean it
+            with open(txt_tmp, "r", encoding="utf-8") as f_in:
+                txt_content = f_in.read()
+            cleaned = clean_markdown_text(txt_content)
+            with open(md, "w", encoding="utf-8") as f_out:
+                f_out.write(cleaned)
             try:
                 os.remove(txt_tmp)
             except Exception:

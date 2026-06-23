@@ -23,6 +23,9 @@ FICHAS_DISPONIBLES = {
     "pirrongeli": "Diccionario/Diccionario/Pirrongeli, Oscar",
     "teresa": "Diccionario/Diccionario/Teresa Coraspe",
     "horizontes": "Diccionario/Diccionario/Revista Horizontes",
+    "salloum": "Diccionario/Salloum Bitar, Abraham",
+    "peraza": "Diccionario/Peraza, Celestino",
+    "mistos": "Diccionario/Mitos y leyendas",
 }
 
 
@@ -63,7 +66,7 @@ def prueba_loaders():
 def prueba_extraccion(carpeta: str = None, con_neo4j: bool = False):
     """Ejecuta el pipeline completo sobre una ficha real."""
     if carpeta is None:
-        carpeta = FICHAS_DISPONIBLES["gonzalez"]
+        carpeta = FICHAS_DISPONIBLES["teresa"]
 
     print("\n" + "="*60)
     print(f"🧪 TEST 2: Pipeline completo")
