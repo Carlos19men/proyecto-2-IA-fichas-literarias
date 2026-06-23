@@ -82,7 +82,7 @@ def obtener_datos_mock() -> FichaLiterariaSchema:
     )
 
 def ejecutar_ingesta_completa():
-    ruta_prueba = "data/raw/Iot comparacion y aplicacion.docx"
+    ruta_prueba = "Diccionario/Diccionario/González de Alegría, Elisa/González de Alegría, Elisa.docx"
 
     print("==============================================================")
     print(" INICIANDO PIPELINE GRAPHRAG: INGESTA DE FICHA A NEO4J")
