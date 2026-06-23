@@ -3,15 +3,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/lib/theme";
 import { LiteraryCard, LiteraryCardData } from "@/components/LiteraryCard";
-import { MOCK_AUTHORS, SUGGESTED_QUESTIONS } from "@/lib/mock-data";
+import { SUGGESTED_QUESTIONS } from "@/lib/suggestions";
 import { useRouter } from "next/navigation";
 
-// ─── Demo animation sequence ────────────────────────────────────────────────
-const DEMO_STEPS = [
-  { type: "user", text: "¿Quién fue Teresa de la Parra?" },
-  { type: "card", card: MOCK_AUTHORS[1] },
-  { type: "chips", chips: ["¿Cuál es su novela más famosa?", "Feminismo en la literatura venezolana"] },
-] as const;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 // ─── Feature grid ────────────────────────────────────────────────────────────
 const FEATURES = [
@@ -53,7 +48,7 @@ const FEATURES = [
   },
 ];
 
-// ─── Typewriter hook ─────────────────────────────────────────────────────────
+// ─── Typewriter hook ──────────────────────────────────────────────────────────
 function useTypewriter(text: string, speed = 35, active = true) {
   const [displayed, setDisplayed] = useState("");
   useEffect(() => {
@@ -70,26 +65,56 @@ function useTypewriter(text: string, speed = 35, active = true) {
   return displayed;
 }
 
-// ─── Demo Preview Component ───────────────────────────────────────────────────
+// ─── Demo Preview Component (llama al backend real) ───────────────────────────
 function DemoPreview() {
-  const [step, setStep] = useState<"idle" | "user" | "typing" | "card" | "chips">("idle");
+  const [step, setStep] = useState<"idle" | "user" | "typing" | "card" | "error">("idle");
   const [cardData, setCardData] = useState<LiteraryCardData | null>(null);
-  const [showChips, setShowChips] = useState(false);
-  const userText = useTypewriter(
-    "¿Quién fue Teresa de la Parra?",
-    45,
-    step === "user"
-  );
+  const [errorText, setErrorText] = useState("");
+  const hasFetched = useRef(false);
+
+  const DEMO_QUERY = "¿Quién fue Teresa de la Parra?";
+  const userText = useTypewriter(DEMO_QUERY, 45, step === "user");
 
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
+    // Mostrar el mensaje del usuario
     const t1 = setTimeout(() => setStep("user"), 600);
-    const t2 = setTimeout(() => setStep("typing"), 2200);
-    const t3 = setTimeout(() => {
-      setCardData(MOCK_AUTHORS[1]);
-      setStep("card");
-    }, 3400);
-    const t4 = setTimeout(() => setShowChips(true), 4500);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+    // Mostrar "escribiendo..." y hacer la llamada real
+    const t2 = setTimeout(async () => {
+      setStep("typing");
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: DEMO_QUERY, history: [] }),
+        });
+        if (!res.ok) throw new Error("server_error");
+        const data = await res.json();
+        if (data.metadata) {
+          setCardData({ respuesta_texto: data.respuesta_texto, metadata: data.metadata });
+          setStep("card");
+        } else {
+          // Respuesta sin ficha: mostrar texto plano en modo demo
+          setCardData({
+            respuesta_texto: data.respuesta_texto,
+            metadata: {
+              nombre: "Respuesta del agente",
+              disciplina: "Literatura venezolana",
+              periodo: "",
+              lugar: "",
+            },
+          });
+          setStep("card");
+        }
+      } catch {
+        setErrorText("El backend no está disponible ahora.");
+        setStep("error");
+      }
+    }, 2200);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   return (
@@ -106,7 +131,7 @@ function DemoPreview() {
         <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FEBC2E" }} />
         <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28C840" }} />
         <span style={{ marginLeft: 8, fontSize: "0.75rem", color: "var(--color-text-muted)", fontWeight: 500 }}>
-          LetraScopio — Vista previa
+          LetraScopio — Vista previa en vivo
         </span>
       </div>
 
@@ -124,7 +149,7 @@ function DemoPreview() {
               }}
             >
               {userText}
-              {step === "user" && userText.length < "¿Quién fue Teresa de la Parra?".length && (
+              {step === "user" && userText.length < DEMO_QUERY.length && (
                 <span
                   className="animate-blink"
                   style={{ marginLeft: 2, borderRight: "2px solid white", paddingRight: 1 }}
@@ -163,18 +188,26 @@ function DemoPreview() {
           </div>
         )}
 
-        {/* Literary Card en la demo */}
-        {(step === "card" || step === "chips") && cardData && (
+        {/* Respuesta real de la API */}
+        {step === "card" && cardData && (
           <div className="animate-fade-slide-up" style={{ maxWidth: "95%" }}>
             <LiteraryCard data={cardData} isAnimating />
           </div>
         )}
 
-        {/* Chips de follow-up */}
-        {showChips && (
-          <div className="flex flex-wrap gap-2 animate-fade-in">
-            <span className="chip">¿Cuál es su novela más famosa?</span>
-            <span className="chip">Feminismo en la literatura ven.</span>
+        {/* Error de conexión */}
+        {step === "error" && (
+          <div
+            className="animate-fade-in rounded-xl p-4 text-sm"
+            style={{
+              background: "var(--color-bg-secondary)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-muted)",
+              lineHeight: 1.6,
+            }}
+          >
+            <span style={{ opacity: 0.6 }}>⚠️</span>{" "}
+            {errorText} Inicia el servidor para ver la demo en vivo.
           </div>
         )}
       </div>
@@ -380,7 +413,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── DEMO PREVIEW ───────────────────────────────────────────── */}
+        {/* ── DEMO PREVIEW (en vivo) ──────────────────────────────────── */}
         <section
           className="px-6"
           style={{ paddingBottom: "clamp(3rem, 8vw, 5rem)" }}
