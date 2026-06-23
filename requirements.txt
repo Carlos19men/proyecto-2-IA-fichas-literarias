@@ -16,5 +16,10 @@ pypdf>=4.0.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0
 
+# --- SERVIDOR API BACKEND ---
+fastapi>=0.100.0
+uvicorn>=0.22.0
+
 # --- ENTORNO DE PRUEBAS (Opcional pero recomendado para la carpeta /notebooks) ---
 notebook>=7.0.0
+

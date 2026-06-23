@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { LiteraryCard } from "@/components/LiteraryCard";
 import { ChatMessage, getMockResponse, SUGGESTED_QUESTIONS } from "@/lib/mock-data";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 interface ChatAreaProps {
   initialQuery?: string;
 }
@@ -45,12 +47,45 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
     setInput("");
     setIsLoading(true);
 
-    // Simular latencia del backend
-    await new Promise((r) => setTimeout(r, 1200 + Math.random() * 800));
+    try {
+      // Preparar historial para el backend
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: m.content || "",
+      }));
 
-    const response = getMockResponse(text);
-    setMessages((prev) => [...prev, response]);
-    setIsLoading(false);
+      const res = await fetch(`${API_BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: text.trim(), history }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Error del servidor: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      const assistantMsg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        role: "assistant",
+        content: data.respuesta_texto || undefined,
+        literaryCard: data.metadata
+          ? { respuesta_texto: data.respuesta_texto, metadata: data.metadata }
+          : undefined,
+        timestamp: new Date(),
+        relatedQuestions: data.relatedQuestions || [],
+      };
+
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch (error) {
+      console.warn("[ChatArea] Backend no disponible, usando datos simulados:", error);
+      // Fallback: usar mock data si el backend no responde
+      const response = getMockResponse(text);
+      setMessages((prev) => [...prev, response]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

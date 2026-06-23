@@ -53,7 +53,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col font-inter antialiased bg-bg-primary text-text-primary transition-colors duration-300">
+      <body
+        suppressHydrationWarning
+        className="min-h-full flex flex-col font-inter antialiased bg-bg-primary text-text-primary transition-colors duration-300"
+      >
         {children}
       </body>
     </html>

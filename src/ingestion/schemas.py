@@ -47,6 +47,7 @@ class ObraSchema(BaseModel):
     descripcion: Optional[str] = Field(None, description="Descripción, sinopsis o resumen")
     idioma_original: str = Field(default="español", description="Idioma original de la obra")
     multimedia: List[Multimedia] = Field(default=[], description="Multimedia asociada: PDF, portada JPG, MP3, etc.")
+    embedding: Optional[List[float]] = Field(None, description="Vector de 768 dimensiones para búsqueda semántica")
 
 class CriticaSchema(BaseModel):
     """Crítica, reseña o interpretación de una obra o autor."""
