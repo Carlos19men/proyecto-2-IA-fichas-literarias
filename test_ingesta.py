@@ -66,7 +66,7 @@ def prueba_loaders():
 def prueba_extraccion(carpeta: str = None, con_neo4j: bool = False):
     """Ejecuta el pipeline completo sobre una ficha real."""
     if carpeta is None:
-        carpeta = FICHAS_DISPONIBLES["mistos"]
+        carpeta = FICHAS_DISPONIBLES["peraza"]
 
     print("\n" + "="*60)
     print(f"🧪 TEST 2: Pipeline completo")
@@ -101,25 +101,77 @@ def prueba_extraccion(carpeta: str = None, con_neo4j: bool = False):
         )
 
     if ficha:
-        print("\n📋 JSON extraído (autor):")
-        datos = ficha.autor.model_dump(exclude={"obras", "criticas", "multimedia"})
-        print(json.dumps(datos, ensure_ascii=False, indent=2))
+        from src.ingestion.revista_parser import es_resultado_ficha_revista
 
-        print(f"\n📚 Obras encontradas: {len(ficha.autor.obras)}")
-        for o in ficha.autor.obras:
-            print(f"   - {o.titulo} ({o.fecha_publicacion})")
+        es_mitos = bool(ficha.mitos_leyendas) or "mitos" in str(carpeta).lower()
+        es_revista = es_resultado_ficha_revista(ficha) or "revista" in str(carpeta).lower()
+
+        if es_mitos and ficha.mitos_leyendas:
+            print("\n📋 JSON extraído (mito/leyenda):")
+            for m in ficha.mitos_leyendas:
+                datos_mito = m.model_dump(exclude={"multimedia", "embedding"})
+                print(json.dumps(datos_mito, ensure_ascii=False, indent=2))
+        elif es_revista and ficha.revistas:
+            print("\n📋 JSON extraído (revista):")
+            for r in ficha.revistas:
+                datos_rev = r.model_dump(exclude={"multimedia", "embedding"})
+                print(json.dumps(datos_rev, ensure_ascii=False, indent=2))
+            if ficha.autor.criticas:
+                print("\n📋 Críticas asociadas:")
+                print(json.dumps(
+                    [c.model_dump(exclude={"embedding"}) for c in ficha.autor.criticas],
+                    ensure_ascii=False,
+                    indent=2,
+                ))
+        else:
+            print("\n📋 JSON extraído (autor):")
+            datos = ficha.autor.model_dump(exclude={"obras", "criticas", "multimedia"})
+            print(json.dumps(datos, ensure_ascii=False, indent=2))
+
+        if not es_revista:
+            print(f"\n📚 Obras encontradas: {len(ficha.autor.obras)}")
+            for o in ficha.autor.obras:
+                print(f"   - {o.titulo} ({o.fecha_publicacion})")
 
         print(f"\n📝 Críticas encontradas: {len(ficha.autor.criticas)}")
         for c in ficha.autor.criticas:
             print(f"   - {c.titulo} — {c.autor}")
 
-        print(f"\n🌿 Mitos y leyendas: {len(ficha.mitos_leyendas)}")
-        for m in ficha.mitos_leyendas:
-            print(f"   - {m.titulo} ({m.comunidad_creadora}) — {m.tema_principal}")
+        if not es_revista:
+            print(f"\n📰 Revistas encontradas: {len(ficha.revistas)}")
+            for r in ficha.revistas:
+                nums = f" — {r.numeros_publicados}" if r.numeros_publicados else ""
+                fecha = f" ({r.fecha_primer_numero})" if r.fecha_primer_numero else ""
+                print(f"   - {r.titulo}{fecha}{nums}")
+        elif ficha.revistas:
+            r = ficha.revistas[0]
+            print(f"\n📰 Revista: {r.titulo} ({r.fecha_primer_numero} – {r.fecha_ultimo_numero})")
 
-        print(f"\n🖼️  Multimedia adjuntada: {len(ficha.autor.multimedia)}")
-        for m in ficha.autor.multimedia:
-            print(f"   - [{m.tipo}] {Path(m.enlace).name}")
+        if ficha.antologias:
+            print(f"\n📖 Antologías encontradas: {len(ficha.antologias)}")
+            for a in ficha.antologias:
+                print(f"   - {a.titulo} ({a.fecha_publicacion})")
+
+        if ficha.agrupaciones:
+            print(f"\n👥 Agrupaciones: {len(ficha.agrupaciones)}")
+            for g in ficha.agrupaciones:
+                print(f"   - {g.nombre}")
+
+        if ficha.mitos_leyendas:
+            print(f"\n🌿 Mitos y leyendas: {len(ficha.mitos_leyendas)}")
+            for m in ficha.mitos_leyendas:
+                print(f"   - {m.titulo} ({m.comunidad_creadora}) — {m.tema_principal}")
+
+        if es_revista and ficha.revistas:
+            print(f"\n🖼️  Multimedia adjuntada: {len(ficha.revistas[0].multimedia)}")
+            for m in ficha.revistas[0].multimedia[:5]:
+                print(f"   - [{m.tipo}] {Path(m.enlace).name}")
+            if len(ficha.revistas[0].multimedia) > 5:
+                print(f"   - ... y {len(ficha.revistas[0].multimedia) - 5} más")
+        else:
+            print(f"\n🖼️  Multimedia adjuntada: {len(ficha.autor.multimedia)}")
+            for m in ficha.autor.multimedia:
+                print(f"   - [{m.tipo}] {Path(m.enlace).name}")
 
 
 def main():

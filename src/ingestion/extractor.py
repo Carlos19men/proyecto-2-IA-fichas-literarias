@@ -25,6 +25,26 @@ from src.ingestion.mito_parser import (
     parsear_ficha_mitos_desde_texto,
     mapear_claves_planas_mito,
 )
+from src.ingestion.autor_parser import (
+    es_ficha_autor,
+    parsear_ficha_autor_desde_texto,
+)
+from src.ingestion.revista_parser import (
+    es_ficha_revista,
+    parsear_ficha_revista_desde_texto,
+)
+from src.ingestion.autor_utils import (
+    extraer_actividad_relevante,
+    extraer_perfil_literario,
+    generar_resumen_autor,
+    normalizar_texto_plano,
+    unir_valores_multiples,
+)
+from src.ingestion.json_adapter import (
+    adaptar_json_alternativo,
+    extraer_revistas_del_texto,
+    fusionar_revistas,
+)
 
 
 def normalizar_lugar(val) -> dict | None:
@@ -67,7 +87,11 @@ def normalizar_persona(p) -> dict | None:
         return p
     p = dict(p)
     if "nombre" in p and "nombres" not in p:
-        p["nombres"] = p.pop("nombre")
+        nombre = p.pop("nombre")
+        partes = str(nombre).strip().split()
+        p["nombres"] = partes[0] if partes else nombre
+        if len(partes) > 1 and "apellidos" not in p:
+            p["apellidos"] = " ".join(partes[1:])
     if "apellido" in p and "apellidos" not in p:
         p["apellidos"] = p.pop("apellido")
     return p
@@ -115,6 +139,11 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
     if not isinstance(data, dict):
         return data
 
+    # Formato alternativo del LLM: {"system": ..., "data": [{type: ...}, ...]}
+    adaptado = adaptar_json_alternativo(data)
+    if adaptado:
+        data = adaptado
+
     # Remover acentos de todas las claves (ej: críticas -> criticas, título -> titulo)
     data = quitar_acentos_dict_keys(data)
 
@@ -131,6 +160,15 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
     for k_inc, k_corr in mapeo_claves_raiz.items():
         if k_inc in data and k_corr not in data:
             data[k_corr] = data.pop(k_inc)
+
+    # Revista singular → lista revistas
+    if "revista" in data:
+        rev = data.pop("revista")
+        if isinstance(rev, dict):
+            existentes = data.get("revistas") or []
+            if not isinstance(existentes, list):
+                existentes = [existentes]
+            data["revistas"] = existentes + [rev]
 
     autor = data.get("autor")
     if not isinstance(autor, dict):
@@ -181,10 +219,15 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
 
         # Asegurar que genero_principal sea string y no list
         gp = autor.get("genero_principal")
-        if isinstance(gp, list):
-            autor["genero_principal"] = ", ".join(str(g) for g in gp)
-        elif gp is not None:
-            autor["genero_principal"] = str(gp)
+        if gp is not None:
+            autor["genero_principal"] = unir_valores_multiples(gp) or "desconocido"
+
+        # Seudónimos múltiples → cadena separada por comas
+        if "seudonimo" in autor or "seudonimos" in autor:
+            pseudo = autor.pop("seudonimos", None) or autor.get("seudonimo")
+            autor["seudonimo"] = unir_valores_multiples(pseudo)
+        if "pseudonimo" in autor and not autor.get("seudonimo"):
+            autor["seudonimo"] = unir_valores_multiples(autor.pop("pseudonimo"))
 
         # Asegurar que tematica_principal sea string y no list
         tp = autor.get("tematica_principal")
@@ -234,6 +277,11 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
             autor["actividad_relevante"] = "; ".join(lineas)
         elif act is None:
             autor["actividad_relevante"] = ""
+        elif act:
+            autor["actividad_relevante"] = normalizar_texto_plano(act)
+
+        if autor.get("text"):
+            autor["text"] = normalizar_texto_plano(autor["text"])
 
         # Corregir contexto_vivio (debe ser un string, no un dict)
         ctx = autor.get("contexto_vivio")
@@ -353,6 +401,8 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
                     r["fecha_primer_numero"] = str(r["fecha_primer_numero"])
                 if "fecha_ultimo_numero" in r and r["fecha_ultimo_numero"] is not None:
                     r["fecha_ultimo_numero"] = str(r["fecha_ultimo_numero"])
+                if isinstance(r.get("secciones"), list):
+                    r["secciones"] = ", ".join(str(s) for s in r["secciones"])
                 # Corregir creadores
                 creads = r.get("creadores")
                 if isinstance(creads, list):
@@ -398,8 +448,12 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
                 if "lugar_difusion" in ml:
                     ml["lugar_difusion"] = normalizar_lugar(ml["lugar_difusion"])
 
-    # Mover obras, críticas y multimedia de la raíz al autor si es necesario
+    # Mover obras de la raíz al autor (no en fichas de revista: el campo Obra es multimedia)
+    es_revista = bool(data.get("revistas")) or "revista" in data
     for key in ["obra", "obras"]:
+        if key in data and es_revista:
+            data.pop(key, None)
+            continue
         if key in data:
             val = data.get(key)
             if isinstance(val, dict):
@@ -471,6 +525,10 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
 
 def _extraccion_insuficiente(ficha: FichaLiterariaSchema) -> bool:
     """True si el LLM no extrajo datos útiles (solo defaults)."""
+    if ficha.mitos_leyendas and any(getattr(m, "titulo", None) for m in ficha.mitos_leyendas):
+        return False
+    if ficha.revistas or ficha.agrupaciones or ficha.antologias:
+        return False
     autor = ficha.autor
     sin_autor = (
         getattr(autor, "nombres", "") == "desconocido"
@@ -484,6 +542,71 @@ def _extraccion_insuficiente(ficha: FichaLiterariaSchema) -> bool:
     return sin_autor and sin_contenido
 
 
+def _completar_campos_autor(ficha: FichaLiterariaSchema, texto: str) -> FichaLiterariaSchema:
+    """Rellena perfil literario y resumen si faltan (LLM o parser parcial)."""
+    if es_ficha_mitos(texto) or es_ficha_revista(texto):
+        return ficha
+
+    autor = ficha.autor
+    perfil = extraer_perfil_literario(texto)
+
+    if perfil.get("genero_principal") and (
+        not autor.genero_principal or autor.genero_principal == "desconocido"
+    ):
+        autor.genero_principal = perfil["genero_principal"]
+    if perfil.get("tematica_principal") and not autor.tematica_principal:
+        autor.tematica_principal = perfil["tematica_principal"]
+    if perfil.get("contexto_vivio") and not autor.contexto_vivio:
+        autor.contexto_vivio = perfil["contexto_vivio"]
+    if perfil.get("seudonimo") and not autor.seudonimo:
+        autor.seudonimo = perfil["seudonimo"]
+
+    if not autor.actividad_relevante or len(autor.actividad_relevante) < 200:
+        actividad = extraer_actividad_relevante(texto)
+        if actividad and (not autor.actividad_relevante or len(actividad) > len(autor.actividad_relevante)):
+            autor.actividad_relevante = actividad
+    elif autor.actividad_relevante:
+        autor.actividad_relevante = normalizar_texto_plano(autor.actividad_relevante)
+
+    autor.text = generar_resumen_autor(autor)
+
+    return ficha
+
+
+def _finalizar_ficha(ficha: FichaLiterariaSchema, texto_ficha: str) -> FichaLiterariaSchema:
+    """Post-procesa la ficha: enriquece revistas y completa campos de autor."""
+    ficha = _completar_campos_autor(ficha, texto_ficha)
+    return _enriquecer_revistas_desde_texto(ficha, texto_ficha)
+
+
+def _recuperar_ficha_desde_error(err_msg: str, texto_ficha: str) -> FichaLiterariaSchema | None:
+    """Intenta parsear JSON embebido en mensajes de error del LLM."""
+    start_idx = err_msg.find('{"autor"')
+    if start_idx == -1:
+        start_idx = err_msg.find('{"')
+    if start_idx == -1:
+        return None
+
+    raw_text = err_msg[start_idx:]
+    got_idx = raw_text.find(". Got:")
+    if got_idx != -1:
+        raw_text = raw_text[:got_idx]
+
+    try:
+        start = raw_text.find("{")
+        end = raw_text.rfind("}")
+        if start == -1 or end == -1:
+            return None
+        data = json.loads(raw_text[start : end + 1])
+        data = normalizar_json_antes_de_pydantic(data)
+        ficha = FichaLiterariaSchema(**data)
+        if _extraccion_insuficiente(ficha):
+            return None
+        return _finalizar_ficha(ficha, texto_ficha)
+    except Exception:
+        return None
+
+
 def _aplicar_parser_mitos(texto_ficha: str) -> FichaLiterariaSchema | None:
     """Fallback determinístico para plantillas de mitos y leyendas."""
     parsed = parsear_ficha_mitos_desde_texto(texto_ficha)
@@ -492,6 +615,43 @@ def _aplicar_parser_mitos(texto_ficha: str) -> FichaLiterariaSchema | None:
     print("    -> Usando parser determinístico de Mitos y Leyendas...")
     data = normalizar_json_antes_de_pydantic(parsed)
     return FichaLiterariaSchema(**data)
+
+
+def _aplicar_parser_autor(texto_ficha: str) -> FichaLiterariaSchema | None:
+    """Fallback determinístico para plantillas Word de autor."""
+    parsed = parsear_ficha_autor_desde_texto(texto_ficha)
+    if not parsed:
+        return None
+    print("    -> Usando parser determinístico de ficha de Autor...")
+    data = normalizar_json_antes_de_pydantic(parsed)
+    return FichaLiterariaSchema(**data)
+
+
+def _aplicar_parser_revista(texto_ficha: str) -> FichaLiterariaSchema | None:
+    """Fallback determinístico para plantillas Word de revista."""
+    parsed = parsear_ficha_revista_desde_texto(texto_ficha)
+    if not parsed:
+        return None
+    print("    -> Usando parser determinístico de ficha de Revista...")
+    data = normalizar_json_antes_de_pydantic(parsed)
+    return FichaLiterariaSchema(**data)
+
+
+def _enriquecer_revistas_desde_texto(ficha: FichaLiterariaSchema, texto: str) -> FichaLiterariaSchema:
+    """Añade revistas detectadas en el texto si el LLM no las extrajo."""
+    if es_ficha_mitos(texto) or es_ficha_revista(texto):
+        return ficha
+    nuevas = extraer_revistas_del_texto(texto)
+    if not nuevas:
+        return ficha
+    from src.ingestion.schemas import RevistaSchema
+    existentes = [r.model_dump() if hasattr(r, "model_dump") else r for r in ficha.revistas]
+    fusionadas = fusionar_revistas(existentes, nuevas)
+    for r in fusionadas:
+        if isinstance(r.get("lugar_publicacion"), str):
+            r["lugar_publicacion"] = normalizar_lugar(r["lugar_publicacion"])
+    ficha.revistas = [RevistaSchema(**r) for r in fusionadas]
+    return ficha
 
 
 def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
@@ -506,6 +666,24 @@ def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
     El sistema-prompt incluye el mapeo semántico completo (field_mapping.py) para
     que el LLM traduzca correctamente los campos del Word al schema de Pydantic.
     """
+
+    # Fichas de mitos/leyendas: parser determinístico primero (evita LLM y sección Crítica)
+    if es_ficha_mitos(texto_ficha):
+        ficha_mito = _aplicar_parser_mitos(texto_ficha)
+        if ficha_mito:
+            return _finalizar_ficha(ficha_mito, texto_ficha)
+
+    # Fichas de revista con plantilla Word
+    if es_ficha_revista(texto_ficha):
+        ficha_revista = _aplicar_parser_revista(texto_ficha)
+        if ficha_revista:
+            return _finalizar_ficha(ficha_revista, texto_ficha)
+
+    # Fichas de autor con plantilla Word: parser determinístico primero
+    if es_ficha_autor(texto_ficha):
+        ficha_autor = _aplicar_parser_autor(texto_ficha)
+        if ficha_autor:
+            return _finalizar_ficha(ficha_autor, texto_ficha)
 
     # 1. Obtener el bloque de mapeo semántico Word → schema
     mapping_block = get_prompt_mapping_block()
@@ -564,45 +742,17 @@ INSTRUCCIONES ESPECIALES para campos críticos:
         if _extraccion_insuficiente(resultado) and es_ficha_mitos(texto_ficha):
             fallback = _aplicar_parser_mitos(texto_ficha)
             if fallback:
-                return fallback
-        return resultado
+                return _finalizar_ficha(fallback, texto_ficha)
+        return _finalizar_ficha(resultado, texto_ficha)
     except Exception as e:
         print(f"⚠️  Fallo la extracción estructurada nativa con json_mode: {e}")
         
         # Intentar recuperar el JSON generado de la excepción para no repetir la llamada al LLM
-        raw_text = None
-        err_msg = str(e)
-        
-        # Buscar el JSON en la cadena del error de manera robusta
-        start_idx = err_msg.find('{"autor"')
-        if start_idx == -1:
-            start_idx = err_msg.find('{"')
-            
-        if start_idx != -1:
-            raw_text = err_msg[start_idx:]
-            # Cortar en el primer ". Got:" que indica el final del JSON
-            got_idx = raw_text.find(". Got:")
-            if got_idx != -1:
-                raw_text = raw_text[:got_idx]
-                
-        if raw_text:
-            try:
-                print("    -> Intentando recuperar y normalizar JSON desde la salida previa...")
-                start = raw_text.find("{")
-                end = raw_text.rfind("}")
-                if start != -1 and end != -1:
-                    json_str = raw_text[start:end+1]
-                    data = json.loads(json_str)
-                    
-                    # Saneamiento de datos antes de Pydantic
-                    data = normalizar_json_antes_de_pydantic(data)
-                    
-                    ficha_recuperada = FichaLiterariaSchema(**data)
-                    if not _extraccion_insuficiente(ficha_recuperada):
-                        return ficha_recuperada
-                    print("    -> JSON recuperado sin datos útiles; se intentará otro fallback...")
-            except Exception as e_recovery:
-                print(f"    -> No se pudo recuperar de la salida previa: {e_recovery}")
+        print("    -> Intentando recuperar y normalizar JSON desde la salida previa...")
+        ficha_recuperada = _recuperar_ficha_desde_error(str(e), texto_ficha)
+        if ficha_recuperada:
+            return ficha_recuperada
+        print("    -> JSON recuperado sin datos útiles; se intentará otro fallback...")
         
         print("    -> Iniciando fallback de extracción y parseo manual de JSON...")
         try:
@@ -636,13 +786,31 @@ INSTRUCCIONES ESPECIALES para campos críticos:
             
             ficha_fallback = FichaLiterariaSchema(**data)
             if not _extraccion_insuficiente(ficha_fallback):
-                return ficha_fallback
+                return _finalizar_ficha(ficha_fallback, texto_ficha)
         except Exception as e_inner:
             print(f"❌ Falló el fallback de extracción manual: {e_inner}")
+            # Si el fallback devolvió el mismo JSON alternativo en el error, intentar recuperarlo
+            recuperada = _recuperar_ficha_desde_error(str(e_inner), texto_ficha)
+            if recuperada:
+                return recuperada
 
         if es_ficha_mitos(texto_ficha):
             ficha_mito = _aplicar_parser_mitos(texto_ficha)
             if ficha_mito:
-                return ficha_mito
+                return _finalizar_ficha(ficha_mito, texto_ficha)
+
+        if es_ficha_autor(texto_ficha):
+            ficha_autor = _aplicar_parser_autor(texto_ficha)
+            if ficha_autor:
+                return _finalizar_ficha(ficha_autor, texto_ficha)
+
+        if es_ficha_revista(texto_ficha):
+            ficha_revista = _aplicar_parser_revista(texto_ficha)
+            if ficha_revista:
+                return _finalizar_ficha(ficha_revista, texto_ficha)
+
+        recuperada = _recuperar_ficha_desde_error(str(e), texto_ficha)
+        if recuperada:
+            return recuperada
 
         raise e

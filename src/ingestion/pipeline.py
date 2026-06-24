@@ -27,6 +27,7 @@ from src.ingestion.loaders import (
 from src.ingestion.extractor import extraer_json_de_ficha
 from src.ingestion.embeddings import poblar_embeddings
 from src.ingestion.schemas import FichaLiterariaSchema, Multimedia, ChunkSchema, ObraSchema
+from src.ingestion.revista_parser import es_resultado_ficha_revista
 from src.ingestion.preprocess import convert_to_markdown
 from src.ingestion.chunking import chunk_text
 from src.ingestion.validator import validate_ficha_evidence
@@ -43,36 +44,39 @@ def adjuntar_multimedia_carpeta(
 ) -> FichaLiterariaSchema:
     """
     Toma los archivos multimedia encontrados en la carpeta de la ficha
-    (imágenes, audio, video) y los agrega a `ficha.autor.multimedia`
-    si aún no están registrados.
+    (imágenes, audio, video) y los agrega al schema si aún no están registrados.
 
-    Esto permite que un .jpg o .pdf encontrado junto al .docx
-    quede reflejado automáticamente en el schema.
+    En fichas de revista, la multimedia va a `revistas[0].multimedia`;
+    en el resto, a `autor.multimedia`.
     """
-    enlaces_existentes = {m.enlace for m in ficha.autor.multimedia}
+    es_revista = es_resultado_ficha_revista(ficha)
+    destinos_multimedia = []
+    enlaces_existentes: set[str] = set()
+
+    if es_revista and ficha.revistas:
+        destinos_multimedia.append(ficha.revistas[0].multimedia)
+    destinos_multimedia.append(ficha.autor.multimedia)
+
+    for lista in destinos_multimedia:
+        enlaces_existentes.update(m.enlace for m in lista)
+
+    def _agregar(ruta: str, tipo_valor: str) -> None:
+        if ruta in enlaces_existentes:
+            return
+        item = Multimedia(enlace=ruta, tipo=tipo_valor, restriccion=restriccion_defecto)
+        if es_revista and ficha.revistas:
+            ficha.revistas[0].multimedia.append(item)
+        else:
+            ficha.autor.multimedia.append(item)
+        enlaces_existentes.add(ruta)
 
     for tipo_clave, tipo_valor in [("imagen", "imagen"), ("audio", "audio"), ("video", "video")]:
         for ruta in archivos.get(tipo_clave, []):
-            if ruta not in enlaces_existentes:
-                ficha.autor.multimedia.append(
-                    Multimedia(
-                        enlace=ruta,
-                        tipo=tipo_valor,
-                        restriccion=restriccion_defecto,
-                    )
-                )
+            _agregar(ruta, tipo_valor)
 
-    # PDFs de obras se adjuntan también como multimedia de tipo "pdf"
     for ruta in archivos.get("texto", []):
-        ext = Path(ruta).suffix.lower()
-        if ext == ".pdf" and ruta not in enlaces_existentes:
-            ficha.autor.multimedia.append(
-                Multimedia(
-                    enlace=ruta,
-                    tipo="pdf",
-                    restriccion=restriccion_defecto,
-                )
-            )
+        if Path(ruta).suffix.lower() == ".pdf":
+            _agregar(ruta, "pdf")
 
     return ficha
 
@@ -139,7 +143,7 @@ def procesar_carpeta(
         ficha: FichaLiterariaSchema = extraer_json_de_ficha(texto)
         ficha.chunks = [ChunkSchema(**chunk) for chunk in ficha_chunks]
 
-        # Normalizaciones: asegurar nombre_completo y mapear posibles obras encontradas
+        # Normalizaciones: asegurar nombre_completo
         try:
             autor = ficha.autor
             if not getattr(autor, "nombre_completo", None):
@@ -150,21 +154,11 @@ def procesar_carpeta(
         except Exception:
             pass
 
-        # Intentar extraer seudónimo del texto si no lo trajo el extractor
+        # Mapear revistas a obras solo si no hay revistas como entidad principal ni obras propias
         try:
-            if not getattr(ficha.autor, "seudonimo", None) and texto:
-                import re
-                m = re.search(r"pseud[oó]nimo(?:\s+de)?[:\s\"]*([A-Za-zÁÉÍÓÚáéíóúÑñ\-]+)", texto, flags=re.IGNORECASE)
-                if m:
-                    ficha.autor.seudonimo = m.group(1)
-        except Exception:
-            pass
-
-        # Si el extractor colocó obras en top-level `mitos_leyendas` o `revistas`, mapearlas a autor.obras
-        try:
-            if not getattr(ficha.autor, "obras", None):
+            if not getattr(ficha.autor, "obras", None) and not getattr(ficha, "revistas", None):
                 obras_mapeadas = []
-                for source_name in ("mitos_leyendas", "revistas"):
+                for source_name in ("revistas",):
                     items = getattr(ficha, source_name, None)
                     if not items:
                         continue
@@ -205,13 +199,21 @@ def procesar_carpeta(
             removed = {"obras": [], "criticas": []}
 
         print(f"   → Autor detectado: {ficha.autor.nombres} {ficha.autor.apellidos}")
+        if ficha.revistas and ficha.autor.nombres == "desconocido":
+            print(f"   → Revista detectada: {ficha.revistas[0].titulo}")
         print(f"   → Obras (verificadas): {len(ficha.autor.obras)} | Críticas (verificadas): {len(ficha.autor.criticas)}")
+        if ficha.revistas:
+            print(f"   → Revistas: {len(ficha.revistas)}")
         print(f"   → Chunks generados: {len(ficha.chunks)}")
 
         # Paso 3 — Adjuntar multimedia de la carpeta
         print("🖼️  Paso 3/4: Adjuntando multimedia de la carpeta...")
         ficha = adjuntar_multimedia_carpeta(ficha, archivos)
-        print(f"   → Multimedia total en autor: {len(ficha.autor.multimedia)} elemento(s)")
+        if es_resultado_ficha_revista(ficha) and ficha.revistas:
+            total_mm = len(ficha.revistas[0].multimedia)
+            print(f"   → Multimedia total en revista: {total_mm} elemento(s)")
+        else:
+            print(f"   → Multimedia total en autor: {len(ficha.autor.multimedia)} elemento(s)")
 
         # Paso 4 — Embeddings
         if generar_embeddings:

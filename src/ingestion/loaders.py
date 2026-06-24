@@ -121,9 +121,11 @@ def clasificar_archivo(ruta: str) -> str:
     return "desconocido"
 
 
-def escanear_carpeta_ficha(carpeta: str) -> Dict[str, List[str]]:
+def escanear_carpeta_ficha(carpeta: str, recursivo: bool = True) -> Dict[str, List[str]]:
     """
     Escanea una carpeta y clasifica todos sus archivos por tipo.
+
+    Por defecto incluye subcarpetas (p. ej. números de una revista).
 
     Retorna un diccionario con cuatro listas:
     {
@@ -144,7 +146,8 @@ def escanear_carpeta_ficha(carpeta: str) -> Dict[str, List[str]]:
     if not carpeta_path.is_dir():
         raise ValueError(f"❌ La ruta '{carpeta}' no es un directorio válido.")
 
-    for archivo in sorted(carpeta_path.iterdir()):
+    iterador = carpeta_path.rglob("*") if recursivo else carpeta_path.iterdir()
+    for archivo in sorted(iterador):
         if archivo.is_file():
             tipo = clasificar_archivo(str(archivo))
             if tipo in resultado:
@@ -162,14 +165,28 @@ def leer_texto_principal(carpeta: str) -> Tuple[str, str]:
     Lanza ValueError si no hay ningún archivo de texto.
     """
     archivos = escanear_carpeta_ficha(carpeta)
-    candidatos = archivos["texto"]
+    carpeta_path = Path(carpeta).resolve()
+    # El texto principal suele estar en la raíz de la carpeta (ficha .docx)
+    candidatos = [
+        c for c in archivos["texto"]
+        if Path(c).parent.resolve() == carpeta_path
+    ] or archivos["texto"]
 
     if not candidatos:
         raise ValueError(f"❌ No se encontró ningún archivo de texto en '{carpeta}'.")
 
-    def prioridad(ruta: str) -> int:
+    def prioridad(ruta: str) -> tuple:
         ext = Path(ruta).suffix.lower()
-        return {".docx": 0, ".pdf": 1, ".md": 2}.get(ext, 99)
+        ext_ord = {".docx": 0, ".pdf": 1, ".md": 2}.get(ext, 99)
+        nombre = Path(ruta).name.lower()
+        # Plantilla vacía al final; ficha de ejemplo con datos primero
+        if ext == ".docx" and "ejemplo" in nombre:
+            ejemplo_ord = 0
+        elif ext == ".docx" and "ficha mitos" in nombre and "ejemplo" not in nombre:
+            ejemplo_ord = 2
+        else:
+            ejemplo_ord = 1
+        return (ext_ord, ejemplo_ord, nombre)
 
     candidatos_ordenados = sorted(candidatos, key=prioridad)
     ruta_principal = candidatos_ordenados[0]

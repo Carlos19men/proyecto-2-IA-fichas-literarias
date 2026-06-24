@@ -79,7 +79,7 @@ class AutorSchema(BaseModel):
     apellidos: str = Field(description="Apellidos del autor")
     nombre_completo: Optional[str] = Field(None, description="Nombre completo formado (nombres + apellidos)")
     sexo: str = Field(description="Género: Femenino, Masculino, Otro, Desconocido")
-    seudonimo: Optional[str] = Field(None, description="Seudónimo literario si lo tiene")
+    seudonimo: Optional[str] = Field(None, description="Seudónimo(s) literarios; varios valores separados por coma")
     
     # Cronología y Ubicación
     fecha_nacimiento: Optional[str] = Field(None, description="Fecha de nacimiento (ISO YYYY-MM-DD o YYYY)")
@@ -94,7 +94,7 @@ class AutorSchema(BaseModel):
     
     # Perfil Literario
     tematica_principal: Optional[str] = Field(None, description="Temas centrales en su obra")
-    genero_principal: str = Field(description="Género principal cultivado (novela, poesía, ensayo, etc.)")
+    genero_principal: str = Field(description="Género(s) principal(es) cultivados; varios valores separados por coma")
     
     # Archivos y Multimedia
     imagen_autor: Optional[str] = Field(None, description="URL o ruta de imagen JPG del autor")
@@ -136,6 +136,7 @@ class RevistaSchema(BaseModel):
     secciones: Optional[str] = Field(None, description="Secciones o categorías de contenido")
     descripcion: Optional[str] = Field(None, description="Temas, géneros predominantes, autores relevantes")
     idioma_original: str = Field(default="español", description="Idioma original de la revista")
+    text: Optional[str] = Field(None, description="Resumen descriptivo para búsqueda semántica")
     multimedia: List[Multimedia] = Field(default=[], description="PDF, portada JPG, etc. para descarga")
 
 class AntologiaSchema(BaseModel):
