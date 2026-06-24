@@ -30,9 +30,9 @@ except ImportError:
 # Timeout en segundos para comprobar si Ollama está disponible
 _OLLAMA_PROBE_TIMEOUT = 3
 # Timeout máximo para generar embedding o sintetizar con LLM
-_OLLAMA_REQUEST_TIMEOUT = 20
+_OLLAMA_REQUEST_TIMEOUT = 180
 # Timeout duro (ThreadPoolExecutor) para el paso de síntesis LLM
-_LLM_HARD_TIMEOUT = 25
+_LLM_HARD_TIMEOUT = 300
 
 
 def _ollama_disponible() -> bool:
@@ -101,10 +101,11 @@ class GraphRAGSearcher:
             return
         try:
             modelo = os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+            # request_timeout no está soportado en todas las versiones de langchain_ollama;
+            # se omite para máxima compatibilidad.
             self.embeddings = OllamaEmbeddings(
                 model=modelo,
                 base_url=Config.OLLAMA_BASE_URL,
-                request_timeout=_OLLAMA_REQUEST_TIMEOUT,
             )
             logger.info("Embeddings conectados: %s en %s", modelo, Config.OLLAMA_BASE_URL)
         except Exception as e:
@@ -123,7 +124,6 @@ class GraphRAGSearcher:
                 base_url=Config.OLLAMA_BASE_URL,
                 model=Config.OLLAMA_MODEL,
                 temperature=0,
-                request_timeout=_OLLAMA_REQUEST_TIMEOUT,
             )
             logger.info("LLM conectado: %s en %s", Config.OLLAMA_MODEL, Config.OLLAMA_BASE_URL)
         except Exception as e:
@@ -196,7 +196,15 @@ class GraphRAGSearcher:
             return []
 
         try:
-            query_embedding = self.embeddings.embed_query(query)
+            executor = ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(self.embeddings.embed_query, query)
+            try:
+                query_embedding = future.result(timeout=_OLLAMA_REQUEST_TIMEOUT)
+            finally:
+                executor.shutdown(wait=False)
+        except FuturesTimeoutError:
+            logger.warning("Generación de embedding superó %ds; omitiendo búsqueda vectorial.", _OLLAMA_REQUEST_TIMEOUT)
+            return []
         except Exception as e:
             logger.error("Error al generar embedding de consulta: %s", e)
             return []
@@ -279,13 +287,15 @@ Pregunta del usuario: {query}"""),
                     "query": query,
                 }).content
 
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(_invocar)
-                try:
-                    return future.result(timeout=_LLM_HARD_TIMEOUT)
-                except FuturesTimeoutError:
-                    logger.warning("Síntesis LLM superó %ds; devolviendo contexto directo.", _LLM_HARD_TIMEOUT)
-                    return contexto
+            executor = ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(_invocar)
+            try:
+                return future.result(timeout=_LLM_HARD_TIMEOUT)
+            except FuturesTimeoutError:
+                logger.warning("Síntesis LLM superó %ds; devolviendo contexto directo.", _LLM_HARD_TIMEOUT)
+                return contexto
+            finally:
+                executor.shutdown(wait=False)
         except Exception as e:
             logger.error("Error al sintetizar respuesta: %s", e)
             return contexto
@@ -342,7 +352,9 @@ Pregunta del usuario: {query}"""),
 
         with self.db.driver.session() as session:
             # 1. Ejecutar ambas búsquedas (secuenciales por limitación de driver síncrono)
+            print("-> Paso 1: Buscando coincidencias exactas (Full-Text)...")
             resultados_ft = self._buscar_fulltext(session, query, limit=5)
+            print("-> Paso 2: Generando Embedding y buscando similitudes (Vectorial)...")
             resultados_vec = self._buscar_vectorial(session, query, limit=5)
 
             # 2. Combinar y deduplicar resultados por fichaId
@@ -375,15 +387,19 @@ Pregunta del usuario: {query}"""),
             nodo_principal = principal["nodo"]
 
             # 4. Enriquecer según el tipo de nodo
+            print("-> Paso 3: Enriqueciendo la información encontrada...")
             datos_enriquecidos = self._enriquecer_por_tipo(session, tipo_principal, nodo_principal)
             metadata = construir_metadata_autor(datos_enriquecidos)
 
             # 5. Formatear contexto y sintetizar respuesta
             contexto = formatear_contexto(datos_enriquecidos)
+            print("-> Paso 4: Redactando respuesta con Inteligencia Artificial (por favor espera)...")
             respuesta_texto = self._sintetizar_respuesta(query, contexto, history)
 
             # 6. Generar preguntas relacionadas
             preguntas = self._generar_preguntas_relacionadas(datos_enriquecidos)
+            
+            print("-> Paso 5: ¡Proceso finalizado! Enviando resultados al cliente.")
 
             return {
                 "respuesta_texto": respuesta_texto,
@@ -405,9 +421,18 @@ Pregunta del usuario: {query}"""),
         elif tipo == "Critica":
             return self._enriquecer_desde_critica(session, nodo)
 
+        elif tipo == "Agrupacion":
+            return {"agrupaciones": [nodo]}
+            
+        elif tipo == "MitoLeyenda":
+            return {"mitos": [nodo]}
+            
+        elif tipo == "Multimedia":
+            return self._enriquecer_desde_multimedia(session, nodo)
+
         else:
-            # Agrupacion, Revista, Antologia, MitoLeyenda
-            return {tipo.lower(): nodo}
+            # Revista, Antologia, etc.
+            return {tipo.lower(): [nodo]}
 
     def _enriquecer_desde_critica(self, session, nodo_critica: dict) -> dict:
         """Busca el autor relacionado a la crítica y enriquece desde él."""
@@ -428,3 +453,23 @@ Pregunta del usuario: {query}"""),
             logger.warning("Error al enriquecer desde crítica: %s", e)
 
         return {"criticas": [nodo_critica]}
+
+    def _enriquecer_desde_multimedia(self, session, nodo_multimedia: dict) -> dict:
+        """Busca el autor u obra relacionado al nodo multimedia y enriquece desde ahí."""
+        try:
+            records = session.run(
+                """
+                MATCH (m:Multimedia {fichaId: $fichaId})-[:ASOCIADA_A]->(a:Autor)
+                RETURN a LIMIT 1
+                """,
+                fichaId=nodo_multimedia.get("fichaId"),
+            )
+            record = records.single()
+            if record:
+                autor_nodo = dict(record["a"])
+                autor_nodo.pop("embedding", None)
+                return enriquecer_autor(session, autor_nodo)
+        except Exception as e:
+            logger.warning("Error al enriquecer desde multimedia: %s", e)
+
+        return {"multimedia": [nodo_multimedia]}
