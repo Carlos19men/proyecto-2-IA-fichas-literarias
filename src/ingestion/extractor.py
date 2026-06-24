@@ -82,6 +82,8 @@ def normalizar_multimedia(m) -> dict | None:
     if not isinstance(m, dict):
         return m
     m = dict(m)
+    if not m.get("enlace"):
+        return None
     if "restriccion" in m and not m["restriccion"]:
         m["restriccion"] = None
     return m
@@ -248,9 +250,10 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
         # Corregir multimedia del autor
         mult = autor.get("multimedia")
         if isinstance(mult, list):
-            autor["multimedia"] = [normalizar_multimedia(item) for item in mult if item]
+            autor["multimedia"] = [m for item in mult if item and (m := normalizar_multimedia(item))]
         elif isinstance(mult, dict):
-            autor["multimedia"] = [normalizar_multimedia(mult)]
+            m = normalizar_multimedia(mult)
+            autor["multimedia"] = [m] if m else []
 
         # Corregir obras del autor
         obras = autor.get("obras")
@@ -278,6 +281,8 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
                         o["idioma_original"] = "español"
                     if "lugar_publicacion" in o:
                         o["lugar_publicacion"] = normalizar_lugar(o["lugar_publicacion"])
+                    if "multimedia" in o and isinstance(o["multimedia"], list):
+                        o["multimedia"] = [m for item in o["multimedia"] if item and (m := normalizar_multimedia(item))]
 
         # Corregir críticas del autor
         criticas = autor.get("criticas")
@@ -415,37 +420,8 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
                                 o["idioma_original"] = "español"
                             if "lugar_publicacion" in o:
                                 o["lugar_publicacion"] = normalizar_lugar(o["lugar_publicacion"])
-                    autor["obras"] = val
-
-    for key in ["obra", "obras"]:
-        if key in data:
-            val = data.get(key)
-            if isinstance(val, dict):
-                val = [val]
-            if isinstance(val, list):
-                if isinstance(autor, dict) and not autor.get("obras"):
-                    for o in val:
-                        if isinstance(o, dict):
-                            if "nombres" in o and "titulo" not in o:
-                                o["titulo"] = o.pop("nombres")
-                            if "nombre" in o and "titulo" not in o:
-                                o["titulo"] = o.pop("nombre")
-                            if "titulo" not in o or not o["titulo"]:
-                                o["titulo"] = "sin título"
-                            if "genero" not in o or not o["genero"]:
-                                o["genero"] = "desconocido"
-                            else:
-                                gen = o.get("genero")
-                                if isinstance(gen, list):
-                                    o["genero"] = ", ".join(str(g) for g in gen)
-                            if "fecha_publicacion" not in o or o["fecha_publicacion"] is None:
-                                o["fecha_publicacion"] = "desconocida"
-                            else:
-                                o["fecha_publicacion"] = str(o["fecha_publicacion"])
-                            if "idioma_original" not in o or not o["idioma_original"]:
-                                o["idioma_original"] = "español"
-                            if "lugar_publicacion" in o:
-                                o["lugar_publicacion"] = normalizar_lugar(o["lugar_publicacion"])
+                            if "multimedia" in o and isinstance(o["multimedia"], list):
+                                o["multimedia"] = [m for item in o["multimedia"] if item and (m := normalizar_multimedia(item))]
                     autor["obras"] = val
 
     for key in ["critica", "criticas"]:
@@ -481,7 +457,7 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
             val = [val]
         if isinstance(val, list):
             if isinstance(autor, dict) and not autor.get("multimedia"):
-                autor["multimedia"] = [normalizar_multimedia(item) for item in val if item]
+                autor["multimedia"] = [m for item in val if item and (m := normalizar_multimedia(item))]
     return data
 
 
