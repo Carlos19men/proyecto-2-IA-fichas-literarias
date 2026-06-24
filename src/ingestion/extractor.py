@@ -20,6 +20,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from src.config import Config
 from src.ingestion.schemas import FichaLiterariaSchema
 from src.ingestion.field_mapping import get_prompt_mapping_block
+from src.ingestion.mito_parser import (
+    es_ficha_mitos,
+    parsear_ficha_mitos_desde_texto,
+    mapear_claves_planas_mito,
+)
 
 
 def normalizar_lugar(val) -> dict | None:
@@ -112,6 +117,9 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
 
     # Remover acentos de todas las claves (ej: críticas -> criticas, título -> titulo)
     data = quitar_acentos_dict_keys(data)
+
+    # Mapear respuestas planas del LLM (Título, Comunidad creadora, etc.) → mitos_leyendas
+    data = mapear_claves_planas_mito(data)
 
     # 1. Corregir claves de primer nivel con acentos o formas incorrectas
     mapeo_claves_raiz = {
@@ -461,6 +469,31 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
     return data
 
 
+def _extraccion_insuficiente(ficha: FichaLiterariaSchema) -> bool:
+    """True si el LLM no extrajo datos útiles (solo defaults)."""
+    autor = ficha.autor
+    sin_autor = (
+        getattr(autor, "nombres", "") == "desconocido"
+        and getattr(autor, "apellidos", "") == "desconocido"
+    )
+    sin_contenido = (
+        not ficha.mitos_leyendas
+        and not autor.obras
+        and not autor.criticas
+    )
+    return sin_autor and sin_contenido
+
+
+def _aplicar_parser_mitos(texto_ficha: str) -> FichaLiterariaSchema | None:
+    """Fallback determinístico para plantillas de mitos y leyendas."""
+    parsed = parsear_ficha_mitos_desde_texto(texto_ficha)
+    if not parsed:
+        return None
+    print("    -> Usando parser determinístico de Mitos y Leyendas...")
+    data = normalizar_json_antes_de_pydantic(parsed)
+    return FichaLiterariaSchema(**data)
+
+
 def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
     """
     Envía el texto crudo a Ollama y fuerza una respuesta estructurada en JSON.
@@ -528,6 +561,10 @@ INSTRUCCIONES ESPECIALES para campos críticos:
         llm_estructurado = llm.with_structured_output(FichaLiterariaSchema, method="json_mode")
         cadena = prompt | llm_estructurado
         resultado = cadena.invoke({"texto": texto_ficha})
+        if _extraccion_insuficiente(resultado) and es_ficha_mitos(texto_ficha):
+            fallback = _aplicar_parser_mitos(texto_ficha)
+            if fallback:
+                return fallback
         return resultado
     except Exception as e:
         print(f"⚠️  Fallo la extracción estructurada nativa con json_mode: {e}")
@@ -560,8 +597,10 @@ INSTRUCCIONES ESPECIALES para campos críticos:
                     # Saneamiento de datos antes de Pydantic
                     data = normalizar_json_antes_de_pydantic(data)
                     
-                    # Validar con Pydantic
-                    return FichaLiterariaSchema(**data)
+                    ficha_recuperada = FichaLiterariaSchema(**data)
+                    if not _extraccion_insuficiente(ficha_recuperada):
+                        return ficha_recuperada
+                    print("    -> JSON recuperado sin datos útiles; se intentará otro fallback...")
             except Exception as e_recovery:
                 print(f"    -> No se pudo recuperar de la salida previa: {e_recovery}")
         
@@ -595,7 +634,15 @@ INSTRUCCIONES ESPECIALES para campos críticos:
             # Saneamiento de datos antes de Pydantic
             data = normalizar_json_antes_de_pydantic(data)
             
-            return FichaLiterariaSchema(**data)
+            ficha_fallback = FichaLiterariaSchema(**data)
+            if not _extraccion_insuficiente(ficha_fallback):
+                return ficha_fallback
         except Exception as e_inner:
             print(f"❌ Falló el fallback de extracción manual: {e_inner}")
-            raise e
+
+        if es_ficha_mitos(texto_ficha):
+            ficha_mito = _aplicar_parser_mitos(texto_ficha)
+            if ficha_mito:
+                return ficha_mito
+
+        raise e

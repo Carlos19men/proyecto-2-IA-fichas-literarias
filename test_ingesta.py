@@ -9,23 +9,23 @@ Modos de uso:
        python test_ingesta.py --neo4j
 
   3. Prueba sobre una carpeta específica:
-       python test_ingesta.py --carpeta "Diccionario/Diccionario/Montes, Ramón Isidro"
+       python test_ingesta.py --carpeta "data/raw/Montes, Ramón Isidro"
 """
 
 import sys
 import json
 from pathlib import Path
 
-# Fichas de prueba disponibles en el Diccionario
+# Fichas de prueba disponibles en el data
 FICHAS_DISPONIBLES = {
-    "montes": "Diccionario/Diccionario/Montes, Ramón Isidro",
-    "gonzalez": "Diccionario/Diccionario/González de Alegría, Elisa",
-    "pirrongeli": "Diccionario/Diccionario/Pirrongeli, Oscar",
-    "teresa": "Diccionario/Diccionario/Teresa Coraspe",
-    "horizontes": "Diccionario/Diccionario/Revista Horizontes",
-    "salloum": "Diccionario/Salloum Bitar, Abraham",
-    "peraza": "Diccionario/Peraza, Celestino",
-    "mistos": "Diccionario/Mitos y leyendas",
+    "montes": "data/raw/Montes, Ramón Isidro",
+    "gonzalez": "data/raw/González de Alegría, Elisa",
+    "pirrongeli": "data/raw/Pirrongeli, Oscar",
+    "teresa": "data/raw/Teresa Coraspe",
+    "horizontes": "data/raw/Revista Horizontes",
+    "salloum": "data/raw/Salloum Bitar, Abraham",
+    "peraza": "data/raw/Peraza, Celestino",
+    "mistos": "data/raw/Mitos y leyendas",
 }
 
 
@@ -66,7 +66,7 @@ def prueba_loaders():
 def prueba_extraccion(carpeta: str = None, con_neo4j: bool = False):
     """Ejecuta el pipeline completo sobre una ficha real."""
     if carpeta is None:
-        carpeta = FICHAS_DISPONIBLES["teresa"]
+        carpeta = FICHAS_DISPONIBLES["gonzalez"]
 
     print("\n" + "="*60)
     print(f"🧪 TEST 2: Pipeline completo")
@@ -112,6 +112,10 @@ def prueba_extraccion(carpeta: str = None, con_neo4j: bool = False):
         print(f"\n📝 Críticas encontradas: {len(ficha.autor.criticas)}")
         for c in ficha.autor.criticas:
             print(f"   - {c.titulo} — {c.autor}")
+
+        print(f"\n🌿 Mitos y leyendas: {len(ficha.mitos_leyendas)}")
+        for m in ficha.mitos_leyendas:
+            print(f"   - {m.titulo} ({m.comunidad_creadora}) — {m.tema_principal}")
 
         print(f"\n🖼️  Multimedia adjuntada: {len(ficha.autor.multimedia)}")
         for m in ficha.autor.multimedia:
