@@ -18,14 +18,14 @@ from pathlib import Path
 
 # Fichas de prueba disponibles en el Diccionario
 FICHAS_DISPONIBLES = {
-    "montes": "Diccionario/Diccionario/Montes, Ramón Isidro",
-    "gonzalez": "Diccionario/Diccionario/González de Alegría, Elisa",
-    "pirrongeli": "Diccionario/Diccionario/Pirrongeli, Oscar",
-    "teresa": "Diccionario/Diccionario/Teresa Coraspe",
-    "horizontes": "Diccionario/Diccionario/Revista Horizontes",
-    "salloum": "Diccionario/Salloum Bitar, Abraham",
-    "peraza": "Diccionario/Peraza, Celestino",
-    "mistos": "Diccionario/Mitos y leyendas",
+    "montes": "data/raw/Montes, Ramón Isidro",
+    "gonzalez": "data/raw/González de Alegría, Elisa",
+    "pirrongeli": "data/raw/Pirrongeli, Oscar",
+    "teresa": "data/raw/Teresa Coraspe",
+    "horizontes": "data/raw/Revista Horizontes",
+    "salloum": "data/raw/Salloum Bitar, Abraham",
+    "peraza": "data/raw/Peraza, Celestino",
+    "mistos": "data/raw/Mitos y leyendas",
 }
 
 
@@ -66,7 +66,7 @@ def prueba_loaders():
 def prueba_extraccion(carpeta: str = None, con_neo4j: bool = False):
     """Ejecuta el pipeline completo sobre una ficha real."""
     if carpeta is None:
-        carpeta = FICHAS_DISPONIBLES["teresa"]
+        carpeta = FICHAS_DISPONIBLES["mistos"]
 
     print("\n" + "="*60)
     print(f"🧪 TEST 2: Pipeline completo")
