@@ -39,6 +39,7 @@ from src.ingestion.autor_utils import (
     generar_resumen_autor,
     normalizar_texto_plano,
     unir_valores_multiples,
+    completar_pais_en_lugar,
 )
 from src.ingestion.json_adapter import (
     adaptar_json_alternativo,
@@ -52,7 +53,7 @@ def normalizar_lugar(val) -> dict | None:
     if not val:
         return None
     if isinstance(val, dict):
-        return val
+        return completar_pais_en_lugar(dict(val))
     if isinstance(val, str):
         val_clean = val.strip().lower()
         if val_clean in {"desconocido", "no disponible", "n/d", "s/d", "sin dato", "no especificado"}:
@@ -77,7 +78,7 @@ def normalizar_lugar(val) -> dict | None:
                     if key not in result:
                         result[key] = part
                         break
-        return result
+        return completar_pais_en_lugar(result)
     return None
 
 
@@ -567,6 +568,18 @@ def _completar_campos_autor(ficha: FichaLiterariaSchema, texto: str) -> FichaLit
             autor.actividad_relevante = actividad
     elif autor.actividad_relevante:
         autor.actividad_relevante = normalizar_texto_plano(autor.actividad_relevante)
+
+    from src.ingestion.schemas import Lugar
+    for attr in ("lugar_nacimiento", "lugar_fallecimiento"):
+        lug = getattr(autor, attr, None)
+        if not lug:
+            continue
+        data = lug.model_dump() if hasattr(lug, "model_dump") else dict(lug)
+        if data.get("pais"):
+            continue
+        completado = completar_pais_en_lugar(data)
+        if completado and completado.get("pais"):
+            setattr(autor, attr, Lugar(**completado))
 
     autor.text = generar_resumen_autor(autor)
 
