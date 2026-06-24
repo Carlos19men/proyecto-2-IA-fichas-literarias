@@ -33,6 +33,10 @@ from src.ingestion.revista_parser import (
     es_ficha_revista,
     parsear_ficha_revista_desde_texto,
 )
+from src.ingestion.narrativo_parser import (
+    es_ficha_narrativa,
+    parsear_ficha_narrativa_desde_texto,
+)
 from src.ingestion.autor_utils import (
     extraer_actividad_relevante,
     extraer_perfil_literario,
@@ -40,6 +44,8 @@ from src.ingestion.autor_utils import (
     normalizar_texto_plano,
     unir_valores_multiples,
     completar_pais_en_lugar,
+    completar_sexo_autor,
+    resolver_sexo,
 )
 from src.ingestion.json_adapter import (
     adaptar_json_alternativo,
@@ -242,8 +248,7 @@ def normalizar_json_antes_de_pydantic(data: dict) -> dict:
             autor["nombres"] = "desconocido"
         if "apellidos" not in autor or not autor["apellidos"]:
             autor["apellidos"] = "desconocido"
-        if "sexo" not in autor or not autor["sexo"]:
-            autor["sexo"] = "desconocido"
+        completar_sexo_autor(autor)
         if not autor.get("genero_principal"):
             autor["genero_principal"] = "desconocido"
 
@@ -581,6 +586,7 @@ def _completar_campos_autor(ficha: FichaLiterariaSchema, texto: str) -> FichaLit
         if completado and completado.get("pais"):
             setattr(autor, attr, Lugar(**completado))
 
+    autor.sexo = resolver_sexo(autor.nombres, autor.apellidos, autor.sexo)
     autor.text = generar_resumen_autor(autor)
 
     return ficha
@@ -650,6 +656,16 @@ def _aplicar_parser_revista(texto_ficha: str) -> FichaLiterariaSchema | None:
     return FichaLiterariaSchema(**data)
 
 
+def _aplicar_parser_narrativo(texto_ficha: str) -> FichaLiterariaSchema | None:
+    """Fallback determinístico para biografías en prosa (Wikipedia, etc.)."""
+    parsed = parsear_ficha_narrativa_desde_texto(texto_ficha)
+    if not parsed:
+        return None
+    print("    -> Usando parser determinístico de ficha narrativa...")
+    data = normalizar_json_antes_de_pydantic(parsed)
+    return FichaLiterariaSchema(**data)
+
+
 def _enriquecer_revistas_desde_texto(ficha: FichaLiterariaSchema, texto: str) -> FichaLiterariaSchema:
     """Añade revistas detectadas en el texto si el LLM no las extrajo."""
     if es_ficha_mitos(texto) or es_ficha_revista(texto):
@@ -697,6 +713,11 @@ def extraer_json_de_ficha(texto_ficha: str) -> FichaLiterariaSchema:
         ficha_autor = _aplicar_parser_autor(texto_ficha)
         if ficha_autor:
             return _finalizar_ficha(ficha_autor, texto_ficha)
+
+    if es_ficha_narrativa(texto_ficha):
+        ficha_narrativa = _aplicar_parser_narrativo(texto_ficha)
+        if ficha_narrativa:
+            return _finalizar_ficha(ficha_narrativa, texto_ficha)
 
     # 1. Obtener el bloque de mapeo semántico Word → schema
     mapping_block = get_prompt_mapping_block()
@@ -821,6 +842,11 @@ INSTRUCCIONES ESPECIALES para campos críticos:
             ficha_revista = _aplicar_parser_revista(texto_ficha)
             if ficha_revista:
                 return _finalizar_ficha(ficha_revista, texto_ficha)
+
+        if es_ficha_narrativa(texto_ficha):
+            ficha_narrativa = _aplicar_parser_narrativo(texto_ficha)
+            if ficha_narrativa:
+                return _finalizar_ficha(ficha_narrativa, texto_ficha)
 
         recuperada = _recuperar_ficha_desde_error(str(e), texto_ficha)
         if recuperada:

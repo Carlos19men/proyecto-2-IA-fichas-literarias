@@ -8,6 +8,8 @@ y extrae revistas mencionadas en el texto plano de la ficha.
 import re
 from typing import Optional
 
+from src.ingestion.autor_utils import completar_sexo_autor, resolver_sexo
+
 
 def _split_nombre(nombre: str) -> tuple[str, str]:
     partes = (nombre or "desconocido").strip().split()
@@ -59,7 +61,7 @@ def adaptar_json_alternativo(data: dict) -> Optional[dict]:
             resultado["autor"] = {
                 "nombres": nombres,
                 "apellidos": apellidos,
-                "sexo": item.get("sexo") or "desconocido",
+                "sexo": resolver_sexo(nombres, apellidos, item.get("sexo")),
                 "lugar_nacimiento": lugar_nac,
                 "fecha_nacimiento": item.get("birthDate") or item.get("fecha_nacimiento"),
                 "fecha_fallecimiento": item.get("deathDate") or item.get("fecha_fallecimiento"),
@@ -134,7 +136,7 @@ def adaptar_json_alternativo(data: dict) -> Optional[dict]:
     autor = resultado.get("autor") or {}
     autor.setdefault("nombres", "desconocido")
     autor.setdefault("apellidos", "desconocido")
-    autor.setdefault("sexo", "desconocido")
+    completar_sexo_autor(autor)
     autor["criticas"] = criticas
     autor["obras"] = obras
     autor.setdefault("multimedia", [])

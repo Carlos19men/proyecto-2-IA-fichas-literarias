@@ -13,6 +13,7 @@ from src.ingestion.autor_utils import (
     extraer_actividad_relevante,
     extraer_perfil_literario,
     generar_resumen_autor,
+    resolver_sexo,
 )
 
 
@@ -150,7 +151,7 @@ def parsear_ficha_autor_desde_texto(texto: str) -> Optional[dict]:
     autor = {
         "nombres": nombres,
         "apellidos": apellidos,
-        "sexo": _extraer_campo(texto, ["Sexo"]) or "desconocido",
+        "sexo": resolver_sexo(nombres, apellidos, _extraer_campo(texto, ["Sexo"])),
         "fecha_nacimiento": _extraer_campo(texto, ["Fecha de nacimiento"]),
         "fecha_fallecimiento": _extraer_campo(texto, ["Fecha de fallecimiento", "Fecha de muerte"]),
         "lugar_nacimiento": _extraer_campo(texto, ["Lugar de nacimiento"]),

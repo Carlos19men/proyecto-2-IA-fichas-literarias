@@ -101,6 +101,101 @@ def completar_pais_en_lugar(lugar: dict | None) -> dict | None:
     return lugar
 
 
+# Nombres propios frecuentes en fichas literarias venezolanas/latinoamericanas
+_NOMBRES_FEMENINOS = {
+    "maria", "ana", "carmen", "elisa", "teresa", "rosa", "lucia", "elena", "isabel",
+    "patricia", "laura", "claudia", "diana", "gloria", "silvia", "beatriz", "margarita",
+    "mercedes", "dolores", "pilar", "soledad", "esperanza", "victoria", "cristina",
+    "monica", "adriana", "gabriela", "daniela", "paula", "sandra", "andrea", "alicia",
+    "consuelo", "amparo", "rosario", "milagros", "inmaculada", "concepcion",
+}
+
+_NOMBRES_MASCULINOS = {
+    "federico", "leoncio", "francisco", "ramon", "abraham", "celestino", "oscar", "blas",
+    "julio", "jose", "juan", "carlos", "pedro", "luis", "miguel", "antonio", "manuel",
+    "enrique", "fernando", "guillermo", "roberto", "eduardo", "alberto", "ricardo",
+    "sergio", "pablo", "daniel", "david", "jorge", "mario", "raul", "vicente", "salvador",
+    "arturo", "hector", "felix", "isidro", "adonis", "elias", "saul", "noel", "felipe",
+    "gabriel", "ignacio", "marcos", "martin", "nicolas", "rafael", "rodrigo", "sebastian",
+    "tomas", "victor", "xavier", "andres", "augusto", "benjamin", "emilio", "ernesto",
+    "esteban", "fabian", "gonzalo", "hernan", "hugo", "ivan", "jaime", "javier", "leonardo",
+    "lorenzo", "matias", "mauricio", "nestor", "octavio", "orlando", "pascual", "ruben",
+    "samuel", "santiago", "simon", "teodoro", "ulises", "valentin",
+}
+
+# Terminan en -a pero suelen ser masculinos (o apellidos usados como nombre)
+_NOMBRES_MASCULINOS_EXCEPCION_A = {"joshua", "nicola", "luca", "garcia", "pepe"}
+
+# Terminan en -o pero suelen ser femeninos
+_NOMBRES_FEMENINOS_EXCEPCION_O = set()  # consuelo, amparo, rosario ya están en femeninos
+
+
+def normalizar_sexo(valor: Any) -> Optional[str]:
+    """Normaliza valores explícitos de sexo; None si falta o es desconocido."""
+    if valor is None:
+        return None
+    texto = str(valor).strip()
+    if not texto:
+        return None
+    clave = _sin_tildes(texto.lower())
+    if clave in ("desconocido", "no aplica", "n/a", "na", "sin dato", "sin datos"):
+        return None
+    if clave in ("femenino", "f", "mujer", "femenina"):
+        return "Femenino"
+    if clave in ("masculino", "m", "hombre", "masculina", "varon"):
+        return "Masculino"
+    if clave == "otro":
+        return "Otro"
+    return texto
+
+
+def inferir_sexo_desde_nombre(
+    nombres: Optional[str],
+    apellidos: Optional[str] = None,
+) -> str:
+    """
+    Infiere sexo a partir del primer nombre propio.
+    Devuelve Femenino, Masculino u desconocido.
+    """
+    if not nombres or str(nombres).strip().lower() == "desconocido":
+        return "desconocido"
+
+    primer_nombre = _sin_tildes(str(nombres).strip().split()[0].lower())
+
+    if primer_nombre in _NOMBRES_FEMENINOS:
+        return "Femenino"
+    if primer_nombre in _NOMBRES_MASCULINOS or primer_nombre in _NOMBRES_MASCULINOS_EXCEPCION_A:
+        return "Masculino"
+
+    if primer_nombre.endswith("a") and primer_nombre not in _NOMBRES_MASCULINOS_EXCEPCION_A:
+        return "Femenino"
+    if primer_nombre.endswith("o") and primer_nombre not in _NOMBRES_FEMENINOS_EXCEPCION_O:
+        return "Masculino"
+
+    return "desconocido"
+
+
+def resolver_sexo(
+    nombres: Optional[str],
+    apellidos: Optional[str] = None,
+    sexo_actual: Any = None,
+) -> str:
+    """Devuelve sexo explícito normalizado o inferido por nombre."""
+    if str(sexo_actual or "").strip().lower() == "no aplica":
+        return "no aplica"
+    sexo = normalizar_sexo(sexo_actual)
+    if sexo:
+        return sexo
+    return inferir_sexo_desde_nombre(nombres, apellidos)
+
+
+def completar_sexo_autor(autor: dict) -> None:
+    """Rellena autor['sexo'] por inferencia si no hay valor explícito."""
+    if not isinstance(autor, dict):
+        return
+    autor["sexo"] = resolver_sexo(autor.get("nombres"), autor.get("apellidos"), autor.get("sexo"))
+
+
 def normalizar_texto_plano(texto: Any) -> str:
     """Colapsa saltos de línea y espacios múltiples en un párrafo continuo."""
     if texto is None:

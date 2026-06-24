@@ -26,6 +26,7 @@ FICHAS_DISPONIBLES = {
     "salloum": "data/raw/Salloum Bitar, Abraham",
     "peraza": "data/raw/Peraza, Celestino",
     "mistos": "data/raw/Mitos y leyendas",
+    "aleman": "data/raw/Aleman, Pepe",
 }
 
 
