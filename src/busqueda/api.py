@@ -144,6 +144,63 @@ def debug_search(q: str = "Ramon Isidro"):
     }
 
 
+class GenerarFichaRequest(BaseModel):
+    texto: str
+    modelo: str = "llama3"
+
+class GenerarFichaResponse(BaseModel):
+    ficha: dict
+    modelo_usado: str
+
+
+@app.post("/api/generar-ficha", response_model=GenerarFichaResponse)
+def generar_ficha(request: GenerarFichaRequest):
+    """
+    Recibe texto plano extraído de un archivo y devuelve
+    la ficha literaria estructurada (JSON) generada por Ollama.
+    Soporta selección de modelo (llama3, llama3:8b, etc).
+    """
+    from langchain_ollama import ChatOllama
+    from langchain_core.prompts import ChatPromptTemplate
+    from src.ingestion.schemas import FichaLiterariaSchema
+    from src.ingestion.markdown_parser import complementar_desde_markdown
+    from src.config import Config
+
+    llm = ChatOllama(
+        base_url=Config.OLLAMA_BASE_URL,
+        model=request.modelo,
+        temperature=0,
+    )
+    llm_estructurado = llm.with_structured_output(FichaLiterariaSchema)
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """Eres un experto analista literario e historiador cultural.
+Tu tarea es extraer información del texto y estructurarla exactamente como se te pide.
+
+REGLAS:
+- Nombres y apellidos: Separa en campos nombres y apellidos
+- Lugares: Desglosar en ciudad, municipio, estado, pais
+- Fechas: Formato YYYY o YYYY-MM-DD; usar None si no aparece
+- Listas vacías: Si no hay datos, devolver []
+- No inventar datos que no estén en el texto
+
+CLASIFICACIÓN:
+- Libros, poemarios, novelas → van en autor.obras
+- Reseñas, artículos críticos → van en autor.criticas
+- Mitos y leyendas folclóricas → van en mitos_leyendas"""),
+        ("human", "Extrae la información de esta ficha literaria:\n\n{texto}")
+    ])
+
+    cadena = prompt | llm_estructurado
+    resultado = cadena.invoke({"texto": request.texto})
+    resultado = complementar_desde_markdown(resultado, request.texto)
+
+    return GenerarFichaResponse(
+        ficha=resultado.model_dump(exclude_none=True),
+        modelo_usado=request.modelo,
+    )
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
     """
