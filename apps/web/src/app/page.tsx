@@ -216,12 +216,6 @@ export default function Home() {
           >
             LetraScopio
           </span>
-          <span
-            className="text-xs px-2 py-0.5 rounded-full font-semibold"
-            style={{ background: "var(--color-accent-muted)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", opacity: 0.8 }}
-          >
-            BETA
-          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -246,6 +240,24 @@ export default function Home() {
               </svg>
             )}
             {isDark ? "Claro" : "Oscuro"}
+          </button>
+
+          {/* Login button */}
+          <button
+            id="login-btn"
+            onClick={() => {
+              // TODO: conectar con flujo de autenticación real
+              console.log("Iniciar sesión...");
+            }}
+            className="btn-primary"
+            style={{ padding: "8px 18px", gap: 7, fontSize: "0.875rem" }}
+            aria-label="Iniciar sesión"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            Iniciar sesión
           </button>
         </div>
       </header>

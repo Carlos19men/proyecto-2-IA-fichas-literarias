@@ -21,3 +21,5 @@ node_modules
 **/node_modules/
 **/.next/
 **/.env*
+apps/admin/.next
+apps/admin/.next/

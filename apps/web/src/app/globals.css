@@ -11,22 +11,22 @@
   --font-playfair: var(--font-playfair);
   --font-inter: var(--font-inter);
 
-  /* --- Colores base (se sobreescriben con .dark) --- */
-  --color-bg-primary: #FAF8F5;
-  --color-bg-secondary: #F0ECE6;
-  --color-bg-card: #FFFFFF;
-  --color-accent: #1A3A5C;
-  --color-accent-light: #2E6DA4;
-  --color-accent-muted: #E8F0F8;
+  /* --- Colores base modo claro (Paleta PRO-25) --- */
+  --color-bg-primary: #f1f5f8;
+  --color-bg-secondary: #ddeaf5;
+  --color-bg-card: #e8f0f7;
+  --color-accent: #2e5e85;
+  --color-accent-light: #4f8ec4;
+  --color-accent-muted: #cde0f0;
   --color-text-primary: #1C1C1E;
-  --color-text-muted: #6B6B6B;
-  --color-border: #DDD8D0;
-  --color-border-strong: #C5BEB4;
+  --color-text-muted: #5a6e80;
+  --color-border: #b8d0e8;
+  --color-border-strong: #82b4e3;
 
   /* --- Sombras --- */
-  --shadow-card: 0 2px 16px 0 rgba(26, 58, 92, 0.08);
-  --shadow-card-hover: 0 8px 32px 0 rgba(26, 58, 92, 0.15);
-  --shadow-input: 0 0 0 3px rgba(26, 58, 92, 0.15);
+  --shadow-card: 0 2px 16px 0 rgba(46, 94, 133, 0.08);
+  --shadow-card-hover: 0 8px 32px 0 rgba(46, 94, 133, 0.15);
+  --shadow-input: 0 0 0 3px rgba(46, 94, 133, 0.15);
 
   /* --- Radio --- */
   --radius-card: 16px;

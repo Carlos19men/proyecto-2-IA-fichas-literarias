@@ -70,10 +70,7 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
   return (
     <div className="flex flex-col h-full">
       {/* ── Messages area ─────────────────────────────────────────── */}
-      <div
-        className="flex-1 overflow-y-auto px-4 py-6"
-        style={{ maxHeight: "calc(100vh - 140px)" }}
-      >
+      <div className="flex-1 overflow-y-auto px-4 py-6">
         <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
 
           {/* Empty state */}
@@ -384,6 +381,7 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
           <p style={{ fontSize: "0.6875rem", color: "var(--color-text-muted)", textAlign: "center", marginTop: "0.5rem" }}>
             Presioná <kbd style={{ padding: "1px 5px", borderRadius: 4, border: "1px solid var(--color-border)", fontSize: "0.6875rem" }}>Enter</kbd> para enviar · <kbd style={{ padding: "1px 5px", borderRadius: 4, border: "1px solid var(--color-border)", fontSize: "0.6875rem" }}>Shift+Enter</kbd> para nueva línea
           </p>
+
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ export function DashboardHeader() {
             <span className="font-bold text-primary-foreground">LS</span>
           </div>
           <div>
-            <h1 className="text-lg font-semibold">LetraScopio Admin</h1>
+            <h1 className="text-lg font-semibold" style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}>LetraScopio Admin</h1>
             <p className="text-xs text-muted-foreground">
               Panel de Administración
             </p>
