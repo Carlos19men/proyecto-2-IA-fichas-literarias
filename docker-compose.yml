@@ -50,14 +50,14 @@ networks:
   letrascopio_network:
     driver: bridge
 
-  # --- 3. ADMIN DASHBOARD (Next.js) ---
-  admin:
+  # --- 3. FRONTEND UNIFICADO (Next.js Web + Admin) ---
+  web:
     build:
       context: .
-      dockerfile: apps/admin/Dockerfile
-    container_name: letrascopio_admin
+      dockerfile: apps/web/Dockerfile
+    container_name: letrascopio_web
     ports:
-      - "3000:3000" # Puerto para el dashboard admin
+      - "3000:3000" # Puerto principal del portal y dashboard
     environment:
       - NODE_ENV=production
       # Puedes agregar variables de entorno específicas aquí

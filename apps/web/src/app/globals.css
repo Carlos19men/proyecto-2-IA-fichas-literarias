@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================================
    LETRASCOPIO — SISTEMA DE DISEÑO
@@ -12,16 +13,16 @@
   --font-inter: var(--font-inter);
 
   /* --- Colores base (se sobreescriben con .dark) --- */
-  --color-bg-primary: #FAF8F5;
-  --color-bg-secondary: #F0ECE6;
+  --color-bg-primary: #f1f5f8;
+  --color-bg-secondary: #e2ebf3;
   --color-bg-card: #FFFFFF;
-  --color-accent: #1A3A5C;
-  --color-accent-light: #2E6DA4;
-  --color-accent-muted: #E8F0F8;
+  --color-accent: #2e5e85;
+  --color-accent-light: #4f8ec4;
+  --color-accent-muted: #a3c2e0;
   --color-text-primary: #1C1C1E;
   --color-text-muted: #6B6B6B;
-  --color-border: #DDD8D0;
-  --color-border-strong: #C5BEB4;
+  --color-border: #a3c2e0;
+  --color-border-strong: #82b4e3;
 
   /* --- Sombras --- */
   --shadow-card: 0 2px 16px 0 rgba(26, 58, 92, 0.08);
@@ -59,9 +60,54 @@
    ============================================================ */
 :root {
   color-scheme: light;
+
+  /* --- Compatibilidad con componentes shadcn/ui --- */
+  /* Mapeados a la nueva paleta azul */
+  --background: 206 33% 96%; /* #f1f5f8 */
+  --foreground: 240 3% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 3% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 3% 11%;
+  --primary: 207 49% 35%; /* #2e5e85 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 50% 86%; /* Lighter version for hover */
+  --secondary-foreground: 207 49% 15%;
+  --muted: 210 50% 86%;
+  --muted-foreground: 207 49% 35%;
+  --accent: 210 50% 86%;
+  --accent-foreground: 207 49% 15%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 210 50% 76%; /* #a3c2e0 */
+  --input: 210 50% 76%; /* #a3c2e0 */
+  --ring: 207 49% 35%; /* #2e5e85 */
+  --radius: 0.75rem;
 }
 .dark {
   color-scheme: dark;
+
+  /* --- Compatibilidad shadcn dark mode --- */
+  /* Mapeados a la paleta LetraScopio "Biblioteca Nocturna" */
+  --background: 224 9% 10%;
+  --foreground: 36 14% 91%;
+  --card: 226 11% 16%;
+  --card-foreground: 36 14% 91%;
+  --popover: 226 11% 16%;
+  --popover-foreground: 36 14% 91%;
+  --primary: 208 75% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 222 12% 14%;
+  --secondary-foreground: 36 14% 91%;
+  --muted: 222 12% 14%;
+  --muted-foreground: 0 0% 61%;
+  --accent: 222 12% 14%;
+  --accent-foreground: 36 14% 91%;
+  --destructive: 0 63% 31%;
+  --destructive-foreground: 36 14% 91%;
+  --border: 220 9% 20%;
+  --input: 220 9% 20%;
+  --ring: 208 75% 60%;
 }
 
 /* ============================================================
