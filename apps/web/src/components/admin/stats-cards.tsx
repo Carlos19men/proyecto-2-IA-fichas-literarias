@@ -67,7 +67,7 @@ export function StatsCards() {
       {stats.map((stat, index) => {
         const Icon = stat.icon;
         return (
-          <Card key={index} className="overflow-hidden transition-all duration-200 hover:-translate-y-0.5">
+          <Card key={index} className="border-border dark:border-white/10 shadow-sm bg-card/50 backdrop-blur-sm overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>

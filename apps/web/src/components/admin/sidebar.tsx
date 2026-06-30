@@ -26,7 +26,7 @@ export function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
               key={item.id}
               onClick={() => setActiveTab(item.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium",
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium cursor-pointer",
                 isActive
                   ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"

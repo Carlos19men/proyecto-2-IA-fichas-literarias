@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useTheme } from "@/lib/theme";
 import { MOCK_CONVERSATIONS } from "@/lib/mock-data";
 import { useRouter } from "next/navigation";
+import { ProfileMenu } from "@/components/ProfileMenu";
 
 interface SidebarProps {
   activeConvId: string | null;
@@ -12,7 +12,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeConvId, onSelectConv, onNewConv }: SidebarProps) {
-  const { isDark, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
   const router = useRouter();
 
@@ -59,7 +58,10 @@ export function Sidebar({ activeConvId, onSelectConv, onNewConv }: SidebarProps)
 
   // TODO: Reemplazar con lógica de autenticación real
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(true); // Para probar la vista de admin
+  const [isAdmin] = useState(true); // Para probar la vista de admin
+  const mockUser = isLoggedIn
+    ? { name: "Fernando Pérez", subtitle: "Centro educativo", initials: "FP" }
+    : null;
 
   return (
     <aside
@@ -72,7 +74,8 @@ export function Sidebar({ activeConvId, onSelectConv, onNewConv }: SidebarProps)
         flexDirection: "column",
         height: "100%",
         transition: "width 0.25s ease, min-width 0.25s ease",
-        overflow: "hidden",
+        overflow: "visible",
+        /* El popover usa position:fixed, así que no es afectado por overflow */
       }}
     >
       {/* Logo + collapse toggle */}
@@ -399,88 +402,19 @@ export function Sidebar({ activeConvId, onSelectConv, onNewConv }: SidebarProps)
         </nav>
       )}
 
-      {/* Bottom — theme + actions */}
+      {/* Bottom — Profile Menu estilo Gemini */}
       <div
-        className="p-3 flex flex-col gap-2"
+        className="p-3"
         style={{ borderTop: "1px solid var(--color-border)" }}
       >
-        {/* Administrar Fichas - Solo si es admin y está logueado */}
-        {isLoggedIn && isAdmin && (
-          <button
-            id="admin-panel-btn"
-            onClick={() => window.open("http://localhost:3001", "_blank")}
-            className="btn-ghost"
-            style={{
-              width: "100%",
-              justifyContent: collapsed ? "center" : "flex-start",
-              gap: collapsed ? 0 : 8,
-              padding: "9px 12px",
-              fontSize: "0.8125rem",
-            }}
-            aria-label="Ir al panel de administración"
-            title="Administrar Fichas"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-            {!collapsed && "Administrar Fichas"}
-          </button>
-        )}
-
-        {/* Botón de Iniciar Sesión / Perfil */}
-        <button
-          id="sidebar-login-btn"
-          onClick={() => {
-            // Simulamos el inicio de sesión para que puedas ver cómo cambia
-            setIsLoggedIn(!isLoggedIn);
-          }}
-          className={isLoggedIn ? "btn-ghost" : "btn-primary"}
-          style={{
-            width: "100%",
-            justifyContent: collapsed ? "center" : "flex-start",
-            gap: collapsed ? 0 : 8,
-            padding: "9px 12px",
-            fontSize: "0.8125rem",
-          }}
-          aria-label={isLoggedIn ? "Mi Perfil" : "Iniciar sesión"}
-          title={isLoggedIn ? "Mi Perfil" : "Iniciar sesión"}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          {!collapsed && (isLoggedIn ? "Mi Perfil" : "Iniciar sesión")}
-        </button>
-
-        <button
-          id="chat-theme-toggle"
-          onClick={toggleTheme}
-          className="btn-ghost"
-          style={{
-            width: "100%",
-            justifyContent: collapsed ? "center" : "flex-start",
-            gap: collapsed ? 0 : 8,
-            padding: "9px 12px",
-            fontSize: "0.8125rem",
-          }}
-          aria-label="Cambiar tema"
-        >
-          {isDark ? (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="5" />
-              <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            </svg>
-          ) : (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          )}
-          {!collapsed && (isDark ? "Modo claro" : "Modo oscuro")}
-        </button>
+        <ProfileMenu
+          collapsed={collapsed}
+          user={mockUser}
+          isAdmin={isAdmin}
+          popoverDirection="above"
+          onLogin={() => setIsLoggedIn(true)}
+          onLogout={() => setIsLoggedIn(false)}
+        />
       </div>
     </aside>
   );

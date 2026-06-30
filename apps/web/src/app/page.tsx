@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useTheme } from "@/lib/theme";
 import { LiteraryCard, LiteraryCardData } from "@/components/LiteraryCard";
 import { MOCK_AUTHORS, SUGGESTED_QUESTIONS } from "@/lib/mock-data";
 import { useRouter } from "next/navigation";
+import { ProfileMenu } from "@/components/ProfileMenu";
 
 // ─── Demo animation sequence ────────────────────────────────────────────────
 const DEMO_STEPS = [
@@ -184,10 +184,14 @@ function DemoPreview() {
 
 // ─── Main Landing Page ───────────────────────────────────────────────────────
 export default function Home() {
-  const { isDark, toggleTheme } = useTheme();
   const [query, setQuery] = useState("");
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin] = useState(true); // Para probar la vista de admin
+  const mockUser = isLoggedIn
+    ? { name: "Fernando Pérez", subtitle: "Centro educativo", initials: "FP" }
+    : null;
 
   const handleSearch = (q: string) => {
     if (!q.trim()) return;
@@ -219,46 +223,13 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            id="theme-toggle"
-            onClick={toggleTheme}
-            className="btn-ghost"
-            style={{ padding: "8px 12px", gap: 6 }}
-            aria-label="Cambiar tema"
-          >
-            {isDark ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5"/>
-                <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-                <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-              </svg>
-            )}
-            {isDark ? "Claro" : "Oscuro"}
-          </button>
-
-          {/* Login button */}
-          <button
-            id="login-btn"
-            onClick={() => {
-              // TODO: conectar con flujo de autenticación real
-              console.log("Iniciar sesión...");
-            }}
-            className="btn-primary"
-            style={{ padding: "8px 18px", gap: 7, fontSize: "0.875rem" }}
-            aria-label="Iniciar sesión"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
-            Iniciar sesión
-          </button>
+          <ProfileMenu
+            user={mockUser}
+            isAdmin={isAdmin}
+            popoverDirection="below"
+            onLogin={() => setIsLoggedIn(true)}
+            onLogout={() => setIsLoggedIn(false)}
+          />
         </div>
       </header>
 

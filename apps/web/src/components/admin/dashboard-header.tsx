@@ -1,24 +1,40 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Moon, Sun, Bell, Search, User } from "lucide-react";
+import { Moon, Sun, Bell, Search, ArrowLeft } from "lucide-react";
 import { useTheme } from "@/lib/theme";
+import { useRouter } from "next/navigation";
 
 export function DashboardHeader() {
-  const { theme, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
+  const router = useRouter();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 w-full items-center justify-between px-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <span className="font-bold text-primary-foreground text-sm">LS</span>
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold font-playfair">LetraScopio Admin</h1>
-            <p className="text-xs text-muted-foreground">
-              Panel de Administración
-            </p>
+        <div className="flex items-center gap-3">
+          {/* Botón volver al chat */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/chat")}
+            aria-label="Volver al chat"
+            className="shrink-0"
+            style={{ cursor: "pointer" }}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <span className="font-bold text-primary-foreground text-sm">LS</span>
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold font-playfair">LetraScopio Admin</h1>
+              <p className="text-xs text-muted-foreground">
+                Panel de Administración
+              </p>
+            </div>
           </div>
         </div>
 
@@ -38,7 +54,7 @@ export function DashboardHeader() {
             onClick={toggleTheme}
             aria-label="Cambiar tema"
           >
-            {theme === "dark" ? (
+            {isDark ? (
               <Sun className="h-5 w-5" />
             ) : (
               <Moon className="h-5 w-5" />
@@ -50,11 +66,6 @@ export function DashboardHeader() {
             <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
               3
             </span>
-          </Button>
-
-          <Button variant="ghost" className="gap-2" aria-label="Perfil de administrador">
-            <User className="h-5 w-5" />
-            <span className="hidden sm:inline">Administrador</span>
           </Button>
         </div>
       </div>
