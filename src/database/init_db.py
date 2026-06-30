@@ -33,7 +33,7 @@ def _crear_constraints(session):
             FOR (n:{label}) REQUIRE n.{prop} IS UNIQUE
         """)
 
-    print("✅ Restricciones de unicidad creadas (fichaId + nombre/titulo).")
+    print("[OK] Restricciones de unicidad creadas (fichaId + nombre/titulo).")
 
 
 def _crear_indices_fulltext(session):
@@ -86,7 +86,7 @@ def _crear_indices_fulltext(session):
             ON EACH [ml.titulo, ml.tema_principal, ml.descripcion]
         """)
     except Exception as e:
-        print(f"⚠️  No se pudieron crear algunos índices fulltext: {e}")
+        print(f"[WARN] No se pudieron crear algunos índices fulltext: {e}")
 
 
 def _crear_indices_vectoriales(session):
@@ -132,9 +132,21 @@ def _crear_indices_vectoriales(session):
             }
         """)
 
-        print("✅ Índices vectoriales creados con éxito (Critica, Autor, Multimedia — 768 dims, cosine).")
+        # 4. Índice para Obras
+        session.run("""
+            CREATE VECTOR INDEX index_obras_vector IF NOT EXISTS
+            FOR (o:Obra) ON (o.embedding)
+            OPTIONS {
+              indexConfig: {
+                `vector.dimensions`: 768,
+                `vector.similarity_function`: "cosine"
+              }
+            }
+        """)
+
+        print("[OK] Índices vectoriales creados con éxito (Critica, Autor, Multimedia, Obra — 768 dims, cosine).")
     except Exception as e:
-        print(f"⚠️  No se pudieron crear índices vectoriales (ver versión Neo4j / configuración): {e}")
+        print(f"[WARN] No se pudieron crear índices vectoriales (ver versión Neo4j / configuración): {e}")
 
 def configurar_base_de_datos():
     """
@@ -155,7 +167,7 @@ def configurar_base_de_datos():
         return
 
     with db.driver.session() as session:
-        print("🔧 Configurando esquema del grafo literario...")
+        print("[INFO] Configurando esquema del grafo literario...")
         print("-" * 50)
 
         _crear_constraints(session)
@@ -163,7 +175,7 @@ def configurar_base_de_datos():
         _crear_indices_vectoriales(session)
 
         print("-" * 50)
-        print("🎉 ¡Base de datos preparada para recibir el grafo literario completo!")
+        print("[DONE] ¡Base de datos preparada para recibir el grafo literario completo!")
 
 
 if __name__ == "__main__":

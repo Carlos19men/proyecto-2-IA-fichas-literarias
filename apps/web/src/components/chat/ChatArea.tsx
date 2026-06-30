@@ -2,16 +2,25 @@
 
 import { useState, useRef, useEffect } from "react";
 import { LiteraryCard } from "@/components/LiteraryCard";
-import { ChatMessage, getMockResponse, SUGGESTED_QUESTIONS } from "@/lib/mock-data";
+import { ChatMessage } from "@/lib/conversations";
+import { SUGGESTED_QUESTIONS } from "@/lib/suggestions";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface ChatAreaProps {
   initialQuery?: string;
+  messages: ChatMessage[];
+  onSendMessage: (text: string, history: ChatMessage[]) => Promise<void>;
+  isLoading: boolean;
 }
 
-export function ChatArea({ initialQuery }: ChatAreaProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export function ChatArea({
+  initialQuery,
+  messages,
+  onSendMessage,
+  isLoading,
+}: ChatAreaProps) {
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -26,37 +35,25 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
   useEffect(() => {
     if (initialQuery && !hasInitialized.current) {
       hasInitialized.current = true;
-      sendMessage(initialQuery);
+      onSendMessage(initialQuery, []);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQuery]);
 
-  const sendMessage = async (text: string) => {
+  const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
-
-    const userMsg: ChatMessage = {
-      id: `msg-${Date.now()}`,
-      role: "user",
-      content: text.trim(),
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
     setInput("");
-    setIsLoading(true);
-
-    // Simular latencia del backend
-    await new Promise((r) => setTimeout(r, 1200 + Math.random() * 800));
-
-    const response = getMockResponse(text);
-    setMessages((prev) => [...prev, response]);
-    setIsLoading(false);
+    // Resetear altura del textarea
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+    await onSendMessage(text.trim(), messages);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage(input);
+      handleSend(input);
     }
   };
 
@@ -111,7 +108,7 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
                   <button
                     key={q}
                     className="chip"
-                    onClick={() => sendMessage(q)}
+                    onClick={() => handleSend(q)}
                     id={`empty-chip-${q.slice(0, 20).replace(/\s+/g, "-").toLowerCase()}`}
                   >
                     {q}
@@ -151,14 +148,14 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
                         width: 28,
                         height: 28,
                         borderRadius: 8,
-                        background: "var(--color-accent-muted)",
-                        border: "1px solid var(--color-border)",
+                        background: msg.isError ? "rgba(239,68,68,0.12)" : "var(--color-accent-muted)",
+                        border: msg.isError ? "1px solid rgba(239,68,68,0.3)" : "1px solid var(--color-border)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      <span className="font-playfair font-bold" style={{ fontSize: "0.625rem", color: "var(--color-accent)" }}>
+                      <span className="font-playfair font-bold" style={{ fontSize: "0.625rem", color: msg.isError ? "#ef4444" : "var(--color-accent)" }}>
                         LS
                       </span>
                     </div>
@@ -176,11 +173,11 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
                         maxWidth: "85%",
                         padding: "14px 18px",
                         borderRadius: "4px 16px 16px 16px",
-                        background: "var(--color-bg-card)",
-                        border: "1px solid var(--color-border)",
+                        background: msg.isError ? "rgba(239,68,68,0.06)" : "var(--color-bg-card)",
+                        border: msg.isError ? "1px solid rgba(239,68,68,0.25)" : "1px solid var(--color-border)",
                         fontSize: "0.9375rem",
                         lineHeight: 1.7,
-                        color: "var(--color-text-primary)",
+                        color: msg.isError ? "#ef4444" : "var(--color-text-primary)",
                       }}
                     >
                       {msg.content}
@@ -197,7 +194,7 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
                         <button
                           key={q}
                           className="chip"
-                          onClick={() => sendMessage(q)}
+                          onClick={() => handleSend(q)}
                           id={`related-${q.slice(0, 20).replace(/\s+/g, "-").toLowerCase()}`}
                         >
                           {q}
@@ -294,7 +291,6 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
               padding: "8px 12px 8px 16px",
               transition: "border-color 0.2s, box-shadow 0.2s",
             }}
-            onFocus={() => {}}
           >
             {/* Textarea */}
             <textarea
@@ -356,7 +352,7 @@ export function ChatArea({ initialQuery }: ChatAreaProps) {
             {/* Send button */}
             <button
               id="send-btn"
-              onClick={() => sendMessage(input)}
+              onClick={() => handleSend(input)}
               disabled={!input.trim() || isLoading}
               aria-label="Enviar pregunta"
               style={{

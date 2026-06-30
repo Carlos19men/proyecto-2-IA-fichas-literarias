@@ -260,6 +260,10 @@ class FichaUploader:
     def _subir_obra(self, session: Session, autor_id: str, obra: ObraSchema) -> str:
         obra_id = self.generar_id("OBRA", obra.titulo)
 
+        # Generar embedding vectorial para la búsqueda semántica
+        embedding_texto = f"{obra.titulo}. {obra.descripcion or ''}"
+        embedding = self.generar_embedding(embedding_texto)
+
         cypher = """
         MATCH (a:Autor {fichaId: $autorId})
         MERGE (o:Obra {titulo: $titulo})
@@ -274,7 +278,8 @@ class FichaUploader:
             o.lugar_publicacion_pais = $lugar_publicacion_pais,
             o.editorial = $editorial,
             o.descripcion = $descripcion,
-            o.idioma_original = $idioma_original
+            o.idioma_original = $idioma_original,
+            o.embedding = $embedding
         ON MATCH SET
             o.fichaId = $fichaId,
             o.genero = $genero,
@@ -286,7 +291,8 @@ class FichaUploader:
             o.lugar_publicacion_pais = $lugar_publicacion_pais,
             o.editorial = $editorial,
             o.descripcion = $descripcion,
-            o.idioma_original = $idioma_original
+            o.idioma_original = $idioma_original,
+            o.embedding = $embedding
         MERGE (a)-[:ESCRIBIO]->(o)
         RETURN o.fichaId AS obraId
         """
@@ -305,7 +311,8 @@ class FichaUploader:
             lugar_publicacion_pais=obra.lugar_publicacion.pais if obra.lugar_publicacion else None,
             editorial=obra.editorial,
             descripcion=obra.descripcion,
-            idioma_original=obra.idioma_original
+            idioma_original=obra.idioma_original,
+            embedding=embedding
         )
 
         # Cargar multimedia asociada a la obra
