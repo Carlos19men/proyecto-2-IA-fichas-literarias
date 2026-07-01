@@ -148,18 +148,9 @@ class GenerarFichaRequest(BaseModel):
     texto: str
     modelo: str = "llama3"
 
-class GenerarFichaResponse(BaseModel):
-    ficha: dict
-    modelo_usado: str
 
-
-@app.post("/api/generar-ficha", response_model=GenerarFichaResponse)
-def generar_ficha(request: GenerarFichaRequest):
-    """
-    Recibe texto plano extraído de un archivo y devuelve
-    la ficha literaria estructurada (JSON) generada por Ollama.
-    Soporta selección de modelo (llama3, llama3:8b, etc).
-    """
+def extraer_ficha_desde_texto(texto: str, modelo: str = "llama3") -> dict:
+    """Extrae la ficha literaria estructurada desde texto plano vía Ollama."""
     from langchain_ollama import ChatOllama
     from langchain_core.prompts import ChatPromptTemplate
     from src.ingestion.schemas import FichaLiterariaSchema
@@ -168,7 +159,7 @@ def generar_ficha(request: GenerarFichaRequest):
 
     llm = ChatOllama(
         base_url=Config.OLLAMA_BASE_URL,
-        model=request.modelo,
+        model=modelo,
         temperature=0,
     )
     llm_estructurado = llm.with_structured_output(FichaLiterariaSchema)
@@ -192,13 +183,19 @@ CLASIFICACIÓN:
     ])
 
     cadena = prompt | llm_estructurado
-    resultado = cadena.invoke({"texto": request.texto})
-    resultado = complementar_desde_markdown(resultado, request.texto)
+    resultado = cadena.invoke({"texto": texto})
+    resultado = complementar_desde_markdown(resultado, texto)
+    return resultado.model_dump(exclude_none=True)
 
-    return GenerarFichaResponse(
-        ficha=resultado.model_dump(exclude_none=True),
-        modelo_usado=request.modelo,
-    )
+
+@app.post("/api/generar-ficha")
+def generar_ficha(request: GenerarFichaRequest):
+    """
+    Recibe texto plano extraído de un archivo y devuelve
+    la ficha literaria estructurada (JSON) generada por Ollama.
+    Soporta selección de modelo (llama3, llama3:8b, etc).
+    """
+    return extraer_ficha_desde_texto(request.texto, request.modelo)
 
 
 @app.post("/api/chat", response_model=ChatResponse)

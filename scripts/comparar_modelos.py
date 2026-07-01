@@ -95,7 +95,7 @@ def main() -> int:
         if data is None:
             resultados.append({"modelo": modelo, "tiempo": elapsed, "error": True})
             continue
-        ficha = data.get("ficha", {})
+        ficha = data if data.get("autor") else data.get("ficha", {})
         puntuacion = puntuar(ficha)
         resultados.append({"modelo": modelo, "tiempo": elapsed, "puntuacion": puntuacion})
         print(f"  Tiempo:  {elapsed}s")

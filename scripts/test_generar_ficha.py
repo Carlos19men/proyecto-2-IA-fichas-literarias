@@ -23,9 +23,7 @@ def main() -> int:
     with urllib.request.urlopen(req, timeout=300) as resp:
         data = json.loads(resp.read().decode())
 
-    print(f"modelo_usado: {data.get('modelo_usado')}")
-    ficha = data.get("ficha", {})
-    autor = ficha.get("autor", {})
+    autor = data.get("autor", {})
     print(f"autor: {autor.get('nombres')} {autor.get('apellidos')}")
     print(f"obras: {len(autor.get('obras', []))}")
     print(f"criticas: {len(autor.get('criticas', []))}")
